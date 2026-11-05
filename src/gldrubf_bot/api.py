@@ -1,6 +1,9 @@
 """Allowlisted READ-ONLY T-Investments REST client. No accounts/order endpoints."""
 import json
+import http.client
 import os
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -10,7 +13,8 @@ from decimal import Decimal
 
 from .models import Bar, Quote, DataError, UTC, instant, iso, number
 
-BASE = 'https://invest-public-api.tinkoff.ru/rest/tinkoff.public.invest.api.contract.v1.'
+BASE = 'https://invest-public-api.tbank.ru/rest/tinkoff.public.invest.api.contract.v1.'
+MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 ALLOWED = {'InstrumentsService/FindInstrument', 'InstrumentsService/FutureBy',
            'InstrumentsService/TradingSchedules', 'InstrumentsService/GetFuturesMargin',
            'MarketDataService/GetCandles', 'MarketDataService/GetLastPrices',
@@ -18,7 +22,70 @@ ALLOWED = {'InstrumentsService/FindInstrument', 'InstrumentsService/FutureBy',
 
 
 class APIError(RuntimeError):
-    pass
+    def __init__(self, message, *, method=None, http_status=None, content_type='unknown',
+                 category=None, retryable=False):
+        super().__init__(message)
+        self.method, self.http_status = method, http_status
+        self.content_type, self.category = content_type, category
+        self.retryable = retryable
+
+
+def _metadata(response):
+    status = getattr(response, 'status', None)
+    if type(status) is not int or not 100 <= status <= 599:
+        status = None
+    headers = getattr(response, 'headers', None)
+    value = headers.get('Content-Type', '') if headers is not None else ''
+    media_type = value.partition(';')[0].strip().lower()
+    # Never echo arbitrary header values (a proxy could reflect credentials there).
+    known = {'application/json', 'application/problem+json', 'text/html',
+             'text/plain', 'application/octet-stream'}
+    safe_type = media_type if media_type in known else ('missing' if not value else 'other')
+    return status, safe_type
+
+
+def _failure(method, status, content_type, category, *, retryable=False):
+    # Only the allowlisted method, numeric status and fixed labels reach diagnostics.
+    message = (f'API failure: method={method} http_status={status if status is not None else "unknown"} '
+               f'content_type={content_type} category={category}')
+    return APIError(message, method=method, http_status=status, content_type=content_type,
+                    category=category, retryable=retryable)
+
+
+def _http_failure(method, status, content_type):
+    category = {401: 'authentication_error', 403: 'permission_denied',
+                407: 'proxy_authentication_error', 408: 'http_timeout',
+                429: 'rate_limited'}.get(status, 'http_error')
+    if status is not None and 300 <= status < 400:
+        category = 'redirect_blocked'
+    elif status is not None and 500 <= status < 600:
+        category = 'server_error'
+    elif status is not None and 200 <= status < 300:
+        category = 'unexpected_http_status'  # REST methods specify 200, not 204/206.
+    retryable = status in (408, 429) or (status is not None and 500 <= status < 600)
+    return _failure(method, status, content_type, category, retryable=retryable)
+
+
+def _network_failure(method, status, content_type, exc):
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    retryable = True
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        category, retryable = 'tls_verification_error', False
+    elif isinstance(reason, ssl.SSLError):
+        category, retryable = 'tls_error', False
+    elif isinstance(reason, TimeoutError):
+        category = 'timeout'
+    elif isinstance(reason, socket.gaierror):
+        category = 'dns_error'
+    elif isinstance(reason, str) and reason.startswith('Tunnel connection failed:'):
+        category = 'proxy_tunnel_error'  # Do not include CONNECT reason/URL/credentials.
+    elif isinstance(reason, http.client.IncompleteRead):
+        category = 'incomplete_response'
+    elif isinstance(reason, http.client.HTTPException):
+        category = 'http_protocol_error'
+    else:
+        category = 'network_error'
+    return _failure(method, status, content_type, category, retryable=retryable)
 
 
 def quotation(value):
@@ -149,27 +216,44 @@ class ReadOnlyClient:
                   json.dumps(payload).encode(), {'Authorization': 'Bearer ' + self._token,
                   'Content-Type': 'application/json', 'Accept': 'application/json'}, method='POST')
         for attempt in range(self.attempts):
+            status, content_type = None, 'unknown'
             try:
                 with self.transport(request, timeout=20) as response:
-                    data = response.read(16 * 1024 * 1024 + 1)
-                if len(data) > 16 * 1024 * 1024:
-                    raise APIError('API response too large')
-                result = json.loads(data)
-                if not isinstance(result, dict) or 'code' in result:
-                    raise APIError('Unexpected API response')
+                    status, content_type = _metadata(response)
+                    if status != 200:
+                        raise _http_failure(method, status, content_type)
+                    data = response.read(MAX_RESPONSE_BYTES + 1)
+                if len(data) > MAX_RESPONSE_BYTES:
+                    raise _failure(method, status, content_type, 'response_too_large')
+                if not data.strip():
+                    raise _failure(method, status, content_type, 'empty_response')
+                if content_type not in {'application/json', 'application/problem+json'}:
+                    raise _failure(method, status, content_type, 'unexpected_content_type')
+                try:
+                    result = json.loads(data)
+                except (json.JSONDecodeError, UnicodeError, RecursionError):
+                    raise _failure(method, status, content_type, 'invalid_json') from None
+                if not isinstance(result, dict):
+                    raise _failure(method, status, content_type, 'unexpected_json_type')
+                if content_type == 'application/problem+json' or any(k in result for k in ('code', 'error', 'message')):
+                    raise _failure(method, status, content_type, 'api_error_envelope')
                 return result
             except urllib.error.HTTPError as exc:
-                retry = exc.code == 429 or 500 <= exc.code < 600
-                # Never expose response body, request headers, token or transport exception text.
-                error = 'API HTTP ' + str(exc.code)
-            except (urllib.error.URLError, TimeoutError, OSError):
-                retry, error = True, 'API connection/timeout failure'
-            except (json.JSONDecodeError, UnicodeError):
-                raise APIError('Invalid API JSON') from None
-            if not retry or attempt + 1 == self.attempts:
-                raise APIError(error) from None
+                try:
+                    status, content_type = _metadata(exc)
+                    error = _http_failure(method, status, content_type)
+                finally:
+                    exc.close()  # Release the HTTP response without reading/logging its body.
+            except APIError as exc:
+                error = exc
+            except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
+                error = _network_failure(method, status, content_type, exc)
+            except UnicodeError:
+                # Header/request encoding errors must not be mislabeled as JSON errors.
+                error = _failure(method, status, content_type, 'request_encoding_error')
+            if not error.retryable or attempt + 1 == self.attempts:
+                raise error from None
             self.sleep(min(2 ** attempt, 4))
-        raise APIError('API unavailable')
 
     def instrument(self, uid=None):
         if not uid:

@@ -6,6 +6,7 @@ import unittest
 import urllib.error
 from datetime import datetime, timedelta
 from decimal import Decimal as D
+from email.message import Message
 from src.gldrubf_bot.api import ReadOnlyClient, Instrument, APIError, parse_day, quotation
 from src.gldrubf_bot.models import UTC, DataError
 
@@ -13,6 +14,17 @@ from src.gldrubf_bot.models import UTC, DataError
 UID = 'verified-fixture-uid'
 INST = Instrument(UID, 'fixture-figi', 'GLDRUBF', 'MOEX_FUT', D(1))
 NOW = datetime(2026, 1, 2, 19, tzinfo=UTC)
+
+
+class FakeResponse(io.BytesIO):
+    """HTTP response metadata as returned by urllib, with a closeable body."""
+
+    def __init__(self, body, status=200, content_type='application/json'):
+        super().__init__(body)
+        self.status = status
+        self.headers = Message()
+        if content_type is not None:
+            self.headers['Content-Type'] = content_type
 
 
 def q(n):return {'units': str(n), 'nano': 0}
@@ -34,7 +46,7 @@ class APITests(unittest.TestCase):
         self.requests = []
         def transport(request, timeout):
             self.requests.append((request.full_url, json.loads(request.data)))
-            return io.BytesIO(json.dumps(responder(request.full_url.split('.')[-1], json.loads(request.data))).encode())
+            return FakeResponse(json.dumps(responder(request.full_url.split('.')[-1], json.loads(request.data))).encode())
         return make_client(token='fake-test-token', transport=transport, sleep=lambda _: None)
 
     def test_allowlist_and_no_token_echo(self):
@@ -53,7 +65,7 @@ class APITests(unittest.TestCase):
         def transport(request, timeout):
             attempts.append(1)
             if len(attempts) == 1:raise urllib.error.HTTPError(request.full_url, 429, 'rate limit', {}, None)
-            return io.BytesIO(b'{"candles":[]}')
+            return FakeResponse(b'{"candles":[]}')
         c = make_client(token='fake', transport=transport, sleep=lambda _: None)
         self.assertEqual(c.call('MarketDataService/GetCandles', {}), {'candles': []})
         self.assertEqual(len(attempts), 2)
@@ -143,7 +155,7 @@ class APIContractTests(unittest.TestCase):
         self.assertTrue(parse_day(raw).trading)
 
     def test_bad_json_is_sanitized(self):
-        def transport(*_,**__):return io.BytesIO(b'not-json-fake-secret')
+        def transport(*_,**__):return FakeResponse(b'not-json-fake-secret')
         c=make_client(token='fake-secret',transport=transport)
         with self.assertRaises(APIError) as cm:c.call('MarketDataService/GetCandles',{})
         self.assertNotIn('fake-secret',str(cm.exception))

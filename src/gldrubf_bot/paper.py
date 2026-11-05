@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from datetime import date
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,7 +29,9 @@ def execute_paper(db_path: str | Path, day: str, target: int, price: float) -> P
         raise ValueError("Invalid target")
     if not (0 < price < float("inf")):
         raise ValueError("Invalid execution price")
-    with sqlite3.connect(str(db_path), timeout=15) as db:
+    # Connection.__exit__ commits/rolls back but does not close the file handle.
+    # Exit the transaction first, then close on success, early return or error.
+    with closing(sqlite3.connect(str(db_path), timeout=15)) as db, db:
         db.execute("""CREATE TABLE IF NOT EXISTS paper_events (
             day TEXT PRIMARY KEY,
             signal INTEGER NOT NULL,

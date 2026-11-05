@@ -15,11 +15,12 @@ from src.gldrubf_bot.engine import PaperEngine
 from src.gldrubf_bot.io import save_calendar
 from src.gldrubf_bot.models import Quote, DataError, instant, iso, number
 from src.gldrubf_bot.paper import execute_paper
-from tests.helpers import bars, costs, UP
+from tests.helpers import bars, costs, UP, SQLiteResourceTestCase
 
 
-class WorkflowTests(unittest.TestCase):
+class WorkflowTests(SQLiteResourceTestCase):
     def setUp(self):
+        super().setUp()
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

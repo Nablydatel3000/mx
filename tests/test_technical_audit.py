@@ -2,6 +2,7 @@
 import json
 import sqlite3
 import unittest
+from contextlib import closing
 from datetime import datetime, timedelta
 from decimal import Decimal as D
 from pathlib import Path
@@ -12,13 +13,14 @@ from src.gldrubf_bot.api import parse_day, Instrument
 from src.gldrubf_bot.cli import paper_step
 from src.gldrubf_bot.engine import PaperEngine
 from src.gldrubf_bot.models import DataError, Quote, UTC, iso
-from tests.helpers import bars, costs, UP, DOWN
+from tests.helpers import bars, costs, UP, DOWN, SQLiteResourceTestCase
 from tests import test_api as api_fixtures
 from tests.test_api import day, candle, INST, NOW
 
 
-class FinancingChronologyAudit(unittest.TestCase):
+class FinancingChronologyAudit(SQLiteResourceTestCase):
     def setUp(self):
+        super().setUp()
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name)/'audit.db'
@@ -30,7 +32,7 @@ class FinancingChronologyAudit(unittest.TestCase):
         return b
 
     def fund_row(self, day):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             return db.execute('SELECT position,cash FROM funding WHERE day=?', (day.isoformat(),)).fetchone()
 
     def test_late_quote_cannot_rewrite_already_settled_position(self):
@@ -110,20 +112,20 @@ class FinancingChronologyAudit(unittest.TestCase):
         newer = bars(UP+[1])[-1]
         self.engine.process_bars([newer], newer.closed_at)
         # Arithmetic balances agree, but the historical position was LONG, not SHORT.
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE funding SET position=-1,cash='2' WHERE day=?", (newer.day.isoformat(),))
             db.execute("UPDATE state SET funding='2' WHERE id=1")
         with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
 
     def test_recovery_rejects_missing_zero_cash_funding_day(self):
         b = self.warm()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('DELETE FROM funding WHERE day=?', (b[0].day.isoformat(),))
         with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
 
     def test_recovery_rejects_shifted_settlement_time(self):
         b = self.warm()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('UPDATE funding SET effective_at=? WHERE day=?',
                        (iso(b[0].closed_at+timedelta(hours=1)), b[0].day.isoformat()))
         with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
@@ -147,7 +149,7 @@ class FinancingChronologyAudit(unittest.TestCase):
     def test_flat_day_rate_still_matches_fixed_scenario_on_recovery(self):
         b=self.warm()
         self.assertEqual(D(self.engine.summary()['funding']),D(0))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE funding SET long_cost='999' WHERE day=?",(b[0].day.isoformat(),))
         with self.assertRaises(DataError):PaperEngine(self.path,'audit-uid',costs())
 

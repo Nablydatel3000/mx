@@ -1,17 +1,19 @@
 import json
 import sqlite3
 import unittest
+from contextlib import closing
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from datetime import timedelta
 from decimal import Decimal as D
 from src.gldrubf_bot.engine import PaperEngine
 from src.gldrubf_bot.models import Bar, Quote, DataError, iso
-from tests.helpers import bars, costs, UP, DOWN
+from tests.helpers import bars, costs, UP, DOWN, SQLiteResourceTestCase
 
 
-class EngineTests(unittest.TestCase):
+class EngineTests(SQLiteResourceTestCase):
     def setUp(self):
+        super().setUp()
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name)/'paper.db'
@@ -90,7 +92,7 @@ class EngineTests(unittest.TestCase):
             PaperEngine(self.path, 'different-uid', costs())
         with self.assertRaises(DataError):
             PaperEngine(self.path, 'verified-fixture-uid', costs(commission_rub=D(9)))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE state SET gross='999' WHERE id=1")
         with self.assertRaises(DataError):
             PaperEngine(self.path, 'verified-fixture-uid', costs())
@@ -139,7 +141,7 @@ class EngineTests(unittest.TestCase):
         self.e.observe(Quote(self.b[-1].closed_at+timedelta(seconds=1),D(100)))
         more=bars(UP+[1,1]);self.e.process_bars(more,more[-1].closed_at)
         before=self.e.summary()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("""CREATE TRIGGER test_failure BEFORE INSERT ON fills
                 WHEN NEW.kind='OPEN' BEGIN SELECT RAISE(ABORT,'injected storage fault'); END""")
         with self.assertRaises(sqlite3.IntegrityError):

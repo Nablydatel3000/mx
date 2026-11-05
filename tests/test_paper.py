@@ -3,9 +3,10 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from src.gldrubf_bot.paper import execute_paper
+from tests.helpers import SQLiteResourceTestCase
 
 
-class PaperTests(unittest.TestCase):
+class PaperTests(SQLiteResourceTestCase):
     def test_persistent_idempotence_and_flip(self):
         with TemporaryDirectory() as directory:
             db = Path(directory) / "paper.db"

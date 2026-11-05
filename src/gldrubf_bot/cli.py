@@ -71,7 +71,7 @@ def paper_step(engine, client, instrument, clock=lambda: datetime.now(UTC), max_
     observed_at = instant(clock())
     if observed_at < now:
         raise DataError('Local clock moved backwards during fetch')
-    engine.process_bars(bars, observed_at)
+    engine.process_bars(bars, observed_at, coverage_start=start.date(), coverage_end=now.date())
     quote = client.quote(instrument, clock)
     current = instant(clock())
     if quote is None or not market_open(calendar, quote.time):

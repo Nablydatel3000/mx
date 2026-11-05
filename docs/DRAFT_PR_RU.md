@@ -1,10 +1,12 @@
-# Подготовленный Draft PR — не создан автоматически
+# Существующий Draft PR #1
 
 Заголовок: **GLDRUBF: read-only API и устойчивый PAPER SMA20/50**
 
-GitHub API вернул Forbidden при создании через GraphQL и REST. Номер/URL существующего PR не получен. Ниже готовое описание; код уже опубликован в отдельной ветке.
+Пользователь указал существующий [Draft PR #1](https://github.com/Nablydatel3000/mx/pull/1). Git-ссылка refs/pull/1/head сверена с веткой gldrubf-v1-paper-api; новая работа обновляет её, новый PR не создаётся. GitHub API карточки остаётся недоступным (Forbidden). Исторически автоматическое создание при первой поставке не удалось.
 
-[Открыть сравнение для создания Draft PR](https://github.com/Nablydatel3000/mx/compare/main...gldrubf-v1-paper-api?expand=1). В интерфейсе выбрать **Create draft pull request**, не Merge.
+[Дополнительный аудит, исправления и 62 теста](TECHNICAL_AUDIT_V1_RU.md).
+
+[Открыть существующий PR #1](https://github.com/Nablydatel3000/mx/pull/1). Не создавать дубликат и не выполнять Merge.
 
 ## Описание
 
@@ -12,6 +14,6 @@ GitHub API вернул Forbidden при создании через GraphQL и 
 
 Реализованы UID GLDRUBF, официальный календарь и завершённые свечи, обработка API-ошибок/пропусков, Decimal P&L, комиссии/проскальзывание и настраиваемая дневная модель финансирования, SQLite recovery/idempotence и Windows launchers. Клиент ограничен read-only allowlist; LIVE, реальные заявки, deployment и оптимизация не реализованы.
 
-Фактически прошли исходные 6 и расширенные 42 теста на Linux, compileall и CLI-help. Финальный suite проверен в чистой копии публикуемых файлов. Журнал: docs/TEST_RESULTS.txt. Аудит, изменения, Windows-инструкция и ограничения: docs/AUDIT_AND_IMPLEMENTATION_RU.md и README.md.
+Фактически прошли исходные 6 и расширенные 62 теста на Linux, compileall и CLI-help. Финальный suite проверен в чистой копии публикуемых файлов. Журнал: docs/TEST_RESULTS.txt. Аудит, изменения, Windows-инструкция и ограничения: docs/AUDIT_AND_IMPLEMENTATION_RU.md и README.md.
 
 Draft: авторизованный GLDRUBF API и Windows НЕ проверены (токен отсутствует). PAPER/replay не является полноценным бэктестом. Polling LastPrices не воспроизводит стакан/первый глобальный тик; финансирование — дневная модель, ГО/ликвидация/полный variation margin не моделируются. Не объединять с main до технической приёмки.

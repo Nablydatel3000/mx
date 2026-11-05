@@ -89,6 +89,12 @@ class PaperEngine:
         finally:
             connection.close()
 
+    def _position_before(self, db, cutoff):
+        # Same-time CLOSE/OPEN are both excluded: funding is settled immediately BEFORE cutoff.
+        row = db.execute('SELECT position_after FROM fills WHERE time < ? ORDER BY id DESC LIMIT 1',
+                         (iso(cutoff),)).fetchone()
+        return row[0] if row else 0
+
     def _validate_state(self, db):
         if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
             raise DataError('SQLite integrity check failed')
@@ -97,6 +103,8 @@ class PaperEngine:
         previous = None
         for f in db.execute('SELECT * FROM fills ORDER BY id'):
             stamp = instant(f['time'])
+            if f['time'] != iso(stamp):
+                raise DataError('Noncanonical fill timestamp; chronology cannot be certified')
             if previous is not None and stamp < previous:
                 raise DataError('Corrupt fill chronology')
             previous = stamp
@@ -114,8 +122,20 @@ class PaperEngine:
                 raise DataError('Fill P&L/position mismatch')
             gross += realized
             fees += number(f['commission'])
+        bar_rows = {r['day']: r for r in db.execute('SELECT * FROM bars')}
+        funding_rows = {r['day']: r for r in db.execute('SELECT * FROM funding')}
+        if set(bar_rows) != set(funding_rows):
+            raise DataError('Funding coverage disagrees with processed daily bars')
         funding = Decimal(0)
-        for f in db.execute('SELECT * FROM funding'):
+        for f in funding_rows.values():
+            payload = json.loads(bar_rows[f['day']]['payload'])
+            cutoff = instant(payload['closed_at'])
+            if instant(f['effective_at']) != cutoff:
+                raise DataError('Funding cutoff disagrees with official bar completion')
+            if f['position'] != self._position_before(db, cutoff):
+                raise DataError('Funding position disagrees with historical fills at cutoff')
+            if self.costs.funding_daily_rub is not None and number(f['long_cost']) != self.costs.funding_daily_rub:
+                raise DataError('Funding rate disagrees with fixed scenario configuration')
             if f['position'] not in (-1, 0, 1) or number(f['cash']) != -f['position']*number(f['long_cost']):
                 raise DataError('Funding ledger mismatch')
             if self.costs.funding_daily_rub is None and f['position'] and date.fromisoformat(f['day']) in self.rates:
@@ -135,12 +155,20 @@ class PaperEngine:
             row = db.execute('SELECT MAX(day) FROM bars').fetchone()
             return date.fromisoformat(row[0]) if row[0] else None
 
-    def process_bars(self, bars, known_at):
+    def process_bars(self, bars, known_at, *, coverage_start=None, coverage_end=None):
         """One atomic catch-up. Signals become known NOW, never at an invented old price.
 
         Multiple missed crossings supersede an unfilled target. No virtual historical fills.
         """
         known_at = instant(known_at)
+        if any(not isinstance(b, Bar) for b in bars):
+            raise DataError('Validated daily bars required')
+        if (coverage_start is None) != (coverage_end is None):
+            raise DataError('Both source coverage boundaries are required')
+        if coverage_start is None and bars:
+            coverage_start, coverage_end = bars[0].day, bars[-1].day
+        if coverage_start is not None and (type(coverage_start) is not date or type(coverage_end) is not date or coverage_start > coverage_end):
+            raise DataError('Invalid source coverage dates')
         if [b.day for b in bars] != sorted({b.day for b in bars}):
             raise DataError('Daily batch must be unique and ordered')
         if bars and self.costs.funding_daily_rub is None:
@@ -148,6 +176,11 @@ class PaperEngine:
             if any(bars[0].day <= d <= bars[-1].day and d not in dates for d in self.rates):
                 raise DataError('Funding on a non-candle date is unsupported by the daily settlement model')
         with self.db() as db:
+            if coverage_start is not None:
+                cached = {r[0] for r in db.execute('SELECT day FROM bars WHERE day>=? AND day<=?',
+                          (coverage_start.isoformat(), coverage_end.isoformat()))}
+                if not cached.issubset({b.day.isoformat() for b in bars}):
+                    raise DataError('Previously cached daily bar disappeared from refreshed calendar/history')
             for bar in bars:
                 if not isinstance(bar, Bar) or not bar.complete or bar.closed_at > known_at:
                     raise DataError('Only completed, historically available bars may form signals')
@@ -169,8 +202,7 @@ class PaperEngine:
                 if last_quote and known_at < instant(last_quote['time']):
                     raise DataError('Signal observation cannot precede an already consumed quote')
                 # Daily financing scenario: position held immediately before official session end.
-                position = db.execute('SELECT position_after FROM fills WHERE time < ? ORDER BY id DESC LIMIT 1', (iso(bar.closed_at),)).fetchone()
-                held = position[0] if position else 0
+                held = self._position_before(db, bar.closed_at)
                 rate = self.costs.funding_daily_rub
                 if rate is None:
                     rate = self.rates.get(bar.day)
@@ -208,6 +240,11 @@ class PaperEngine:
             last = db.execute('SELECT time FROM quotes ORDER BY time DESC LIMIT 1').fetchone()
             if last and quote.time < instant(last[0]):
                 raise DataError('Stale/out-of-order observation')
+            watermark = db.execute('SELECT known_at FROM bars ORDER BY day DESC LIMIT 1').fetchone()
+            if watermark and quote.time < instant(watermark[0]):
+                # A late quote must not backdate a fill into an already processed funding snapshot.
+                # Do not mark/consume it: wait for a causally eligible observation.
+                return False
             db.execute('INSERT INTO quotes VALUES (?,?)', (iso(quote.time), str(quote.price)))
             state = db.execute('SELECT * FROM state WHERE id=1').fetchone()
             if not state['pending'] or quote.time <= instant(state['pending_after']):
@@ -242,12 +279,13 @@ class PaperEngine:
     def _summary(self, db):
         state = dict(db.execute('SELECT * FROM state WHERE id=1').fetchone())
         last = db.execute('SELECT time,price FROM quotes ORDER BY time DESC LIMIT 1').fetchone()
+        watermark = db.execute('SELECT known_at FROM bars ORDER BY day DESC LIMIT 1').fetchone()
         mark = number(last['price']) if last else None
         unrealized = ((mark - number(state['entry'])) * state['position'] * self.costs.point_value_rub
                       if mark is not None and state['position'] else Decimal(0))
         net = number(state['gross']) - number(state['fees']) + number(state['funding'])
         return dict(uid=self.uid, position=state['position'], entry=state['entry'], pending=state['pending'],
-                    pending_after=state['pending_after'], realized_gross=state['gross'], commission=state['fees'],
+                    pending_after=state['pending_after'], observation_watermark=watermark[0] if watermark else None, realized_gross=state['gross'], commission=state['fees'],
                     funding=state['funding'], realized_net=str(net), unrealized=str(unrealized),
                     equity=str(self.costs.initial_cash_rub + net + unrealized),
                     mark_time=last['time'] if last else None,

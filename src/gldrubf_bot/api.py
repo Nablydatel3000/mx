@@ -59,32 +59,52 @@ class TradingDay:
 
 
 def parse_day(raw):
-    day = instant(raw['date']).date()  # API trading-date label, NOT host/Moscow date conversion.
+    day = instant(raw['date']).date()  # API date label; independent MOEX alignment still needs live verification.
     if type(raw.get('isTradingDay', False)) is not bool:
         raise DataError('Missing calendar trading flag')
     if not raw.get('isTradingDay', False):
         return TradingDay(day, False, (), None)
+
+    def pair(start, end):
+        if bool(raw.get(start)) != bool(raw.get(end)):
+            raise DataError('Incomplete calendar interval: ' + start + '/' + end)
+        if not raw.get(start):
+            return None
+        a, b = instant(raw[start]), instant(raw[end])
+        if a >= b:
+            raise DataError('Invalid calendar interval: ' + start + '/' + end)
+        return a, b
+
     windows = []
     for start, end in [('startTime', 'endTime'), ('eveningStartTime', 'eveningEndTime'),
                        ('premarketStartTime', 'premarketEndTime')]:
-        if bool(raw.get(start)) != bool(raw.get(end)):
-            raise DataError('Incomplete session window')
-        if raw.get(start):
-            a, b = instant(raw[start]), instant(raw[end])
-            if a >= b:
-                raise DataError('Invalid session window')
-            windows.append((a, b))
+        span = pair(start, end)
+        if span:
+            windows.append(span)
     if not windows:
-        raise DataError('Trading day without session windows')
+        raise DataError('Trading day without supported session windows')
     known_spans = set(windows)
-    # Do not fill through a documented clearing interruption.
-    if bool(raw.get('clearingStartTime')) != bool(raw.get('clearingEndTime')):
-        raise DataError('Incomplete clearing interval')
-    if raw.get('clearingStartTime'):
-        a, b = instant(raw['clearingStartTime']), instant(raw['clearingEndTime'])
+    # Official completion must NOT be shortened by removing a trailing clearing/auction.
+    ends = [b for _, b in windows]
+    exclusions = []
+    for start, end in [('clearingStartTime', 'clearingEndTime'),
+                       ('openingAuctionStartTime', 'openingAuctionEndTime'),
+                       ('closingAuctionStartTime', 'closingAuctionEndTime')]:
+        span = pair(start, end)
+        if span:
+            known_spans.add(span)
+            exclusions.append(span)
+            if start != 'clearingStartTime':
+                ends.append(span[1])
+    if raw.get('eveningOpeningAuctionStartTime'):
+        if not raw.get('eveningStartTime'):
+            raise DataError('Evening auction lacks a supported regular-session start')
+        a, b = instant(raw['eveningOpeningAuctionStartTime']), instant(raw['eveningStartTime'])
         if a >= b:
-            raise DataError('Invalid clearing interval')
+            raise DataError('Evening auction cannot be separated from regular session')
         known_spans.add((a, b))
+        exclusions.append((a, b))
+    for a, b in exclusions:
         split = []
         for x, y in windows:
             if y <= a or x >= b:
@@ -95,15 +115,10 @@ def parse_day(raw):
                 if b < y:
                     split.append((b, y))
         windows = split
-    ends = [b for _, b in windows]
-    if raw.get('closingAuctionEndTime'):
-        ends.append(instant(raw['closingAuctionEndTime']))
-    if not ends:
-        raise DataError('No supported session remains')
-    for a, b in [('openingAuctionStartTime', 'openingAuctionEndTime'), ('closingAuctionStartTime', 'closingAuctionEndTime')]:
-        if raw.get(a) and raw.get(b):
-            known_spans.add((instant(raw[a]), instant(raw[b])))
-    # New schema uses free-text interval types. Never guess a new break/session's meaning.
+    if not windows:
+        raise DataError('No supported continuous trading window remains')
+    # Free-text type is not classified by guesswork. Only exact mirrors of known
+    # legacy spans are supported; an extra break/session must be reviewed explicitly.
     for item in raw.get('intervals', []):
         interval = item['interval']
         span = (instant(interval['startTs']), instant(interval['endTs']))
@@ -264,10 +279,13 @@ class ReadOnlyClient:
         bars, deferred = {}, set()
         for x in raw:
             t = instant(x['time'])
-            # Match the official trading-date label, not the host's/Moscow wall date.
+            # Supported mapping is the API UTC-date label, never the host/Moscow wall date.
+            # The contract alone does not prove a universal overnight trade-date mapping.
             day = calendar.get(t.date())
             if day is None or not day.trading:
                 raise DataError('Candle cannot be mapped to official trading date')
+            if any(other.day != day.day and other.contains(t) for other in calendar.values()):
+                raise DataError('Daily timestamp overlaps another trading-day label; overnight mapping needs verification')
             if type(x.get('isComplete', False)) is not bool:
                 raise DataError('Missing candle completion flag')
             if not x.get('isComplete', False):

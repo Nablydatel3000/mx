@@ -1,0 +1,15 @@
+{
+  "control_commit": "dd55ed780ce598667dbf4106a45eebe658d3af55",
+  "strategy_sha256": "87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313",
+  "strategy_byte_identical": true,
+  "Costs_AST_identical": true,
+  "read_only_endpoint_allowlist_identical": true,
+  "source_SHA256": {
+    "src/gldrubf_bot/engine.py": "680e62bdc794c598d850f32d7bc741a2b178cf3537551679907c42f829995aa3",
+    "src/gldrubf_bot/api.py": "c49048ee5a144381a142606e6e41f9de3a23cd4875283e26a864de2088b38206",
+    "src/gldrubf_bot/cli.py": "6e8b97dc9247170c010af43cdeb334e8c42005839546c0cfc3f90264b86867b5"
+  },
+  "real_API_test": "NOT TESTED",
+  "Windows_test": "NOT TESTED",
+  "new_PR_created": false
+}

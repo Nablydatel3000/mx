@@ -7,6 +7,7 @@ import ssl
 import traceback
 import unittest
 import urllib.error
+from datetime import datetime
 from email.message import Message
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -14,6 +15,7 @@ from unittest.mock import Mock, patch
 
 from src.gldrubf_bot.api import APIError, NoRedirect
 from src.gldrubf_bot.cli import main
+from src.gldrubf_bot.models import UTC
 from tests.test_api import FakeResponse, make_client, UID, day, candle, q
 
 
@@ -234,9 +236,11 @@ class HTTPDiagnosticsTests(unittest.TestCase):
                     return FakeResponse(json.dumps(responses[method]).encode())
 
                 client = make_client(token=SECRET, transport=transport)
-                with patch('src.gldrubf_bot.cli.ReadOnlyClient', return_value=client):
+                with patch('src.gldrubf_bot.cli.ReadOnlyClient', return_value=client), \
+                     patch('src.gldrubf_bot.cli.datetime', wraps=datetime) as clock:
+                    clock.now.return_value = datetime(2026, 1, 2, 19, tzinfo=UTC)
                     with self.assertRaises(SystemExit) as cm:
-                        main(['fetch', '--from', '2026-01-02T00:00:00Z', '--to', '2026-01-03T00:00:00Z',
+                        main(['fetch', '--from', '2026-01-02T00:00:00Z', '--to', '2026-01-02T19:00:00Z',
                               '--interval', 'day', '--output', str(Path(directory) / 'export')])
                 self.assertIn('method=' + failed_method, str(cm.exception))
                 self.assertIn('http_status=200', str(cm.exception))

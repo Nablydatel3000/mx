@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta, time as daytime
 from decimal import Decimal
 
 from .models import Bar, Quote, DataError, UTC, instant, iso, number
+from .api_error_codes import extract_codes, read_error_codes
 
 BASE = 'https://invest-public-api.tbank.ru/rest/tinkoff.public.invest.api.contract.v1.'
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
@@ -23,11 +24,13 @@ ALLOWED = {'InstrumentsService/FindInstrument', 'InstrumentsService/FutureBy',
 
 class APIError(RuntimeError):
     def __init__(self, message, *, method=None, http_status=None, content_type='unknown',
-                 category=None, retryable=False):
+                 category=None, retryable=False, grpc_code=None, api_code=None):
         super().__init__(message)
         self.method, self.http_status = method, http_status
         self.content_type, self.category = content_type, category
         self.retryable = retryable
+        self.grpc_code, self.api_code = grpc_code, api_code
+        self.request_parameters = None
 
 
 def _metadata(response):
@@ -44,15 +47,17 @@ def _metadata(response):
     return status, safe_type
 
 
-def _failure(method, status, content_type, category, *, retryable=False):
+def _failure(method, status, content_type, category, *, retryable=False, codes=(None, None)):
     # Only the allowlisted method, numeric status and fixed labels reach diagnostics.
     message = (f'API failure: method={method} http_status={status if status is not None else "unknown"} '
-               f'content_type={content_type} category={category}')
+               f'content_type={content_type} category={category} '
+               f'grpc_code={codes[0] if codes[0] is not None else "unknown"} '
+               f'api_code={codes[1] if codes[1] is not None else "unknown"}')
     return APIError(message, method=method, http_status=status, content_type=content_type,
-                    category=category, retryable=retryable)
+                    category=category, retryable=retryable, grpc_code=codes[0], api_code=codes[1])
 
 
-def _http_failure(method, status, content_type):
+def _http_failure(method, status, content_type, *, codes=(None, None)):
     category = {401: 'authentication_error', 403: 'permission_denied',
                 407: 'proxy_authentication_error', 408: 'http_timeout',
                 429: 'rate_limited'}.get(status, 'http_error')
@@ -63,7 +68,38 @@ def _http_failure(method, status, content_type):
     elif status is not None and 200 <= status < 300:
         category = 'unexpected_http_status'  # REST methods specify 200, not 204/206.
     retryable = status in (408, 429) or (status is not None and 500 <= status < 600)
-    return _failure(method, status, content_type, category, retryable=retryable)
+    return _failure(method, status, content_type, category, retryable=retryable, codes=codes)
+
+
+def schedule_request(exchange, start, end):
+    """First seven-day request, preserving the API's exact exchange identifier."""
+    start, end = instant(start), instant(end)
+    if not isinstance(exchange, str) or not exchange or start >= end:
+        raise DataError('Invalid schedule exchange/range')
+    cursor = datetime.combine(start.date(), daytime.min, UTC)
+    return {'exchange': exchange, 'from': iso(cursor), 'to': iso(min(cursor + timedelta(days=7), end))}
+
+
+def public_exchange(value):
+    # Official markets.md values; unknown response text must not be echoed.
+    known = {'MOEX', 'MOEX_PLUS', 'MOEX_WEEKEND', 'MOEX_EVENING_WEEKEND',
+             'moex_extended', 'FORTS', 'FORTS_EVENING', 'FX', 'FX_MTL', 'otc_ncc',
+             'dealer_realestate', 'dealer_int_exchange', 'moex_close', 'LSE_MORNING', 'spb_close'}
+    return value if isinstance(value, str) and value in known else 'other'
+
+
+def _schedule_error_context(error, payload):
+    if not isinstance(payload, dict) or error.request_parameters is not None:
+        return
+    parameters = {'exchange': public_exchange(payload.get('exchange'))}
+    for key in ('from', 'to'):
+        try:
+            parameters[key] = iso(payload.get(key))
+        except DataError:
+            parameters[key] = 'invalid'
+    error.request_parameters = parameters
+    error.args = (str(error) + ' exchange=' + parameters['exchange'] +
+                  ' from_utc=' + parameters['from'] + ' to_utc=' + parameters['to'],)
 
 
 def _network_failure(method, status, content_type, exc):
@@ -221,7 +257,8 @@ class ReadOnlyClient:
                 with self.transport(request, timeout=20) as response:
                     status, content_type = _metadata(response)
                     if status != 200:
-                        raise _http_failure(method, status, content_type)
+                        raise _http_failure(method, status, content_type,
+                                            codes=read_error_codes(response, content_type))
                     data = response.read(MAX_RESPONSE_BYTES + 1)
                 if len(data) > MAX_RESPONSE_BYTES:
                     raise _failure(method, status, content_type, 'response_too_large')
@@ -236,14 +273,15 @@ class ReadOnlyClient:
                 if not isinstance(result, dict):
                     raise _failure(method, status, content_type, 'unexpected_json_type')
                 if content_type == 'application/problem+json' or any(k in result for k in ('code', 'error', 'message')):
-                    raise _failure(method, status, content_type, 'api_error_envelope')
+                    raise _failure(method, status, content_type, 'api_error_envelope', codes=extract_codes(result))
                 return result
             except urllib.error.HTTPError as exc:
                 try:
                     status, content_type = _metadata(exc)
-                    error = _http_failure(method, status, content_type)
+                    error = _http_failure(method, status, content_type,
+                                          codes=read_error_codes(exc, content_type))
                 finally:
-                    exc.close()  # Release the HTTP response without reading/logging its body.
+                    exc.close()  # Only bounded numeric diagnostics are extracted; no body is logged.
             except APIError as exc:
                 error = exc
             except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
@@ -251,6 +289,8 @@ class ReadOnlyClient:
             except UnicodeError:
                 # Header/request encoding errors must not be mislabeled as JSON errors.
                 error = _failure(method, status, content_type, 'request_encoding_error')
+            if method == 'InstrumentsService/TradingSchedules':
+                _schedule_error_context(error, payload)
             if not error.retryable or attempt + 1 == self.attempts:
                 raise error from None
             self.sleep(min(2 ** attempt, 4))
@@ -286,8 +326,9 @@ class ReadOnlyClient:
         days = {}
         cursor = datetime.combine(start.date(), daytime.min, UTC)
         while cursor < end:
-            finish = min(cursor + timedelta(days=7), end)
-            result = self.call('InstrumentsService/TradingSchedules', {'exchange': exchange, 'from': iso(cursor), 'to': iso(finish)})
+            payload = schedule_request(exchange, cursor, end)
+            finish = instant(payload['to'])
+            result = self.call('InstrumentsService/TradingSchedules', payload)
             matching = [x for x in result.get('exchanges', []) if x.get('exchange') == exchange]
             if len(matching) != 1:
                 raise DataError('Missing/ambiguous exchange calendar')

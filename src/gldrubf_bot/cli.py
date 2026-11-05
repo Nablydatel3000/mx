@@ -121,15 +121,21 @@ def replay(args):
 
 
 def fetch(args):
-    client = ReadOnlyClient()
-    instrument = client.instrument(args.uid)
     start, end = instant(args.start), instant(args.end)
-    if end > datetime.now(UTC) or start >= end:
+    now = datetime.now(UTC)
+    if end > now or start >= end:
         raise DataError('Historical export must end no later than now')
-    args.output.mkdir(parents=True, exist_ok=True)
     if args.interval == 'day':
         if start.time() != daytime.min:
             raise DataError('Daily export --from must be UTC midnight (official date labels)')
+        if start.date() < now.date():
+            raise DataError('TradingSchedules has no historical schedules; daily historical export '
+                            'requires a verified archived calendar. No calendar is fabricated. '
+                            'Use diagnose_trading_schedules_windows.cmd to inspect the API safely.')
+    client = ReadOnlyClient()
+    instrument = client.instrument(args.uid)
+    args.output.mkdir(parents=True, exist_ok=True)
+    if args.interval == 'day':
         bars, calendar = client.completed_daily(instrument, start, end)
         with (args.output / 'daily.csv').open('w', encoding='utf-8-sig', newline='') as f:
             names = ['day', 'time', 'closed_at', 'open', 'high', 'low', 'close', 'volume', 'complete']

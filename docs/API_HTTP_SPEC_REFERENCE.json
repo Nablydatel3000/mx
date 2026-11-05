@@ -1,0 +1,119 @@
+{
+  "source_repository": "https://github.com/RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "source_path": "src/docs/swagger-ui/openapi.yaml",
+  "openapi_version": "3.0.1",
+  "api_version": "1.43",
+  "sha256": "600bfc6555c1b39d546eb2792c960dc1e73c97d13d069bf6a6acc9a1be49eeb9",
+  "production_server": "https://invest-public-api.tbank.ru/rest",
+  "security": {
+    "Bearer": {
+      "type": "http",
+      "scheme": "bearer"
+    }
+  },
+  "methods": {
+    "InstrumentsService/FindInstrument": {
+      "path": "/tinkoff.public.invest.api.contract.v1.InstrumentsService/FindInstrument",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1FindInstrumentRequest",
+      "required": [
+        "query"
+      ],
+      "request_properties": [
+        "apiTradeAvailableFlag",
+        "instrumentKind",
+        "query"
+      ]
+    },
+    "InstrumentsService/FutureBy": {
+      "path": "/tinkoff.public.invest.api.contract.v1.InstrumentsService/FutureBy",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1InstrumentRequest",
+      "required": [
+        "id",
+        "idType"
+      ],
+      "request_properties": [
+        "classCode",
+        "id",
+        "idType"
+      ]
+    },
+    "InstrumentsService/GetFuturesMargin": {
+      "path": "/tinkoff.public.invest.api.contract.v1.InstrumentsService/GetFuturesMargin",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1GetFuturesMarginRequest",
+      "required": [
+        "instrumentId"
+      ],
+      "request_properties": [
+        "instrumentId"
+      ]
+    },
+    "InstrumentsService/TradingSchedules": {
+      "path": "/tinkoff.public.invest.api.contract.v1.InstrumentsService/TradingSchedules",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1TradingSchedulesRequest",
+      "required": [],
+      "request_properties": [
+        "exchange",
+        "from",
+        "to"
+      ]
+    },
+    "MarketDataService/GetCandles": {
+      "path": "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetCandles",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1GetCandlesRequest",
+      "required": [
+        "from",
+        "interval",
+        "to"
+      ],
+      "request_properties": [
+        "candleSourceType",
+        "from",
+        "instrumentId",
+        "interval",
+        "limit",
+        "to"
+      ]
+    },
+    "MarketDataService/GetLastPrices": {
+      "path": "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetLastPrices",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1GetLastPricesRequest",
+      "required": [],
+      "request_properties": [
+        "instrumentId",
+        "instrumentStatus",
+        "lastPriceType"
+      ]
+    },
+    "MarketDataService/GetTradingStatus": {
+      "path": "/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTradingStatus",
+      "verb": "POST",
+      "request_schema": "#/components/schemas/v1GetTradingStatusRequest",
+      "required": [],
+      "request_properties": [
+        "instrumentId"
+      ]
+    }
+  },
+  "unauthenticated_connectivity_probes": [
+    {
+      "host": "invest-public-api.tinkoff.ru",
+      "status": null,
+      "content_type": "unknown",
+      "outcome": "network_or_proxy_failure"
+    },
+    {
+      "host": "invest-public-api.tbank.ru",
+      "status": null,
+      "content_type": "unknown",
+      "outcome": "network_or_proxy_failure"
+    }
+  ],
+  "authenticated_api_validated": false
+}

@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [gldrubf-v1-paper-api]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run offline tests (no broker token or network calls)
+        run: python -m unittest discover -s tests -v
+      - name: Compile Python files
+        run: python -m compileall -q src tests
+      - name: Check CLI entry point
+        run: python -m src.gldrubf_bot.cli --help

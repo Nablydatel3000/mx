@@ -13,7 +13,7 @@ class StrategyTests(unittest.TestCase):
             crossover([DailyClose(date(2026, 1, 1), 100.0)])
 
     def test_up_cross(self):
-        prices = [100.0] * 30 + [90.0] * 20 + [200.0]
+        prices = [100.0] * 30 + [90.0] * 20 + [400.0]
         bars = [DailyClose(date(2026, 1, 1) + timedelta(days=i), p) for i, p in enumerate(prices)]
         self.assertEqual(crossover(bars).target, 1)
 

@@ -20,6 +20,8 @@ SMA20/50 и прежний транзакционный движок сохра�
 реальной торговли, deployment или оптимизации.
 
 Проверки и ограничения: [HISTORY_PAPER_V1_RU.md](HISTORY_PAPER_V1_RU.md).
-134 теста прошли на Linux/Python 3.12 и 3.13; compileall/CLI help/CRLF/diff-check PASS.
+140 тестов прошли на Linux/Python 3.12 и 3.13; compileall/CLI help/CRLF/diff-check PASS.
+Для подтверждённого 30220 убран optional limit из GetCandles без изменения
+интервала/биржевого источника; добавлена безопасная диагностика параметров.
 Новая day-выгрузка и Forward на Windows ещё требуют технической приёмки.
 Без верифицированной evidence Forward не готов к автономному запуску.

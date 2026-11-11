@@ -14,8 +14,9 @@ GetCandles напрямую. Historical replay и Forward PAPER отделены
 
 `fetch --interval day` / download_candles_windows.cmd разрешают прошлые даты.
 FindInstrument/FutureBy проверяют GLDRUBF, UID, RUB и lot=1; GetCandles вызывается
-с instrumentId=UID, CANDLE_INTERVAL_DAY, CANDLE_SOURCE_EXCHANGE, limit=2400,
+с instrumentId=UID, CANDLE_INTERVAL_DAY, CANDLE_SOURCE_EXCHANGE, без optional limit,
 чанками 90 дней. Старый календарь не запрашивается.
+Удаление limit описано в [исправлении 30220](GETCANDLES_30220_RU.md).
 
 API-клиент проверяет цены/OHLC, время и диапазон, завершённость, объём, источник,
 конфликты дублей и UID, если он присутствует в записи. Пустой protobuf-список

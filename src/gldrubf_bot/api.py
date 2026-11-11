@@ -7,6 +7,7 @@ import ssl
 import time
 import urllib.error
 import urllib.request
+from uuid import UUID
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, time as daytime
 from decimal import Decimal
@@ -100,6 +101,37 @@ def _schedule_error_context(error, payload):
     error.request_parameters = parameters
     error.args = (str(error) + ' exchange=' + parameters['exchange'] +
                   ' from_utc=' + parameters['from'] + ' to_utc=' + parameters['to'],)
+
+
+def _candles_error_context(error, payload, token):
+    if not isinstance(payload, dict) or error.request_parameters is not None:
+        return
+    # Echo only a canonical public UID, never an arbitrary instrumentId value.
+    uid = payload.get('instrumentId')
+    try:
+        safe_uid = str(UUID(uid)) if isinstance(uid, str) and len(uid) == 36 else 'redacted'
+    except ValueError:
+        safe_uid = 'redacted'
+    if uid == token or safe_uid == token:
+        safe_uid = 'redacted'
+    parameters = {'instrumentId': safe_uid if 'instrumentId' in payload else 'omitted'}
+    for key in ('from', 'to'):
+        try:
+            parameters[key] = iso(payload.get(key)) if key in payload else 'omitted'
+        except DataError:
+            parameters[key] = 'invalid'
+    for key, allowed in [('interval', {'CANDLE_INTERVAL_DAY', 'CANDLE_INTERVAL_1_MIN'}),
+                         ('candleSourceType', {'CANDLE_SOURCE_UNSPECIFIED', 'CANDLE_SOURCE_EXCHANGE',
+                                               'CANDLE_SOURCE_INCLUDE_WEEKEND'})]:
+        value = payload.get(key)
+        parameters[key] = (value if isinstance(value, str) and value in allowed else 'invalid') if key in payload else 'omitted'
+    limit = payload.get('limit')
+    parameters['limit'] = (limit if type(limit) is int and 0 <= limit <= 2500 else 'invalid') if 'limit' in payload else 'omitted'
+    error.request_parameters = parameters
+    error.args = (str(error) + ' instrumentId=' + parameters['instrumentId'] +
+                  ' from_utc=' + parameters['from'] + ' to_utc=' + parameters['to'] +
+                  ' interval=' + parameters['interval'] + ' candleSourceType=' + parameters['candleSourceType'] +
+                  ' limit=' + str(parameters['limit']),)
 
 
 def _network_failure(method, status, content_type, exc):
@@ -297,6 +329,8 @@ class ReadOnlyClient:
                 error = _failure(method, status, content_type, 'request_encoding_error')
             if method == 'InstrumentsService/TradingSchedules':
                 _schedule_error_context(error, payload)
+            elif method == 'MarketDataService/GetCandles':
+                _candles_error_context(error, payload, self._token)
             if not error.retryable or attempt + 1 == self.attempts:
                 raise error from None
             self.sleep(min(2 ** attempt, 4))
@@ -358,7 +392,9 @@ class ReadOnlyClient:
         cursor, result = start, {}
         while cursor < end:
             finish = min(cursor + step, end)
-            response = self.call('MarketDataService/GetCandles', {'instrumentId': uid, 'from': iso(cursor), 'to': iso(finish), 'interval': interval, 'candleSourceType': 'CANDLE_SOURCE_EXCHANGE', 'limit': 2400})
+            # 30220 rejects candle_type with limit. Keep explicit exchange source
+            # and bounded date chunks; omit optional limit instead of weakening filters.
+            response = self.call('MarketDataService/GetCandles', {'instrumentId': uid, 'from': iso(cursor), 'to': iso(finish), 'interval': interval, 'candleSourceType': 'CANDLE_SOURCE_EXCHANGE'})
             if not isinstance(response.get('candles', []), list):
                 raise DataError('Missing candles array')
             for raw in response.get('candles', []):  # Protobuf may omit an empty repeated field.

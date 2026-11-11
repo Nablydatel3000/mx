@@ -1,4 +1,4 @@
-Actual Linux offline runs; no authenticated API or Windows execution claimed.
+Rechecked 2026-11-11. Actual Linux offline runs; no authenticated API or Windows execution claimed.
 
 Python 3.12.14 / Linux
 python -m unittest discover -s tests -v
@@ -114,7 +114,7 @@ test_quotes_cannot_run_past_a_missing_completed_daily_bar (test_workflows.Workfl
 test_utc_offsets_and_invalid_numbers (test_workflows.WorkflowTests.test_utc_offsets_and_invalid_numbers) ... ok
 
 ----------------------------------------------------------------------
-Ran 110 tests in 0.546s
+Ran 110 tests in 0.599s
 
 OK
 
@@ -232,8 +232,10 @@ test_quotes_cannot_run_past_a_missing_completed_daily_bar (test_workflows.Workfl
 test_utc_offsets_and_invalid_numbers (test_workflows.WorkflowTests.test_utc_offsets_and_invalid_numbers) ... ok
 
 ----------------------------------------------------------------------
-Ran 110 tests in 0.585s
+Ran 110 tests in 0.735s
 
 OK
 
-Additional checks: compileall, CLI help, git diff --check, official numeric catalog match: PASS.
+Additional checks: compileall, CLI help, git diff --check: PASS.
+Official investAPI HEAD: 3eaf23a25f598fe483c913184acdbd9132bc68d2 (unchanged).
+GitHub Actions API: Forbidden; Windows CI is unconfirmed.

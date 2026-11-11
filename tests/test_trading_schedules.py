@@ -131,15 +131,28 @@ class TradingSchedulesTests(unittest.TestCase):
         with self.assertRaises(DataError):
             schedule_request('FORTS_EVENING', END, START)
 
-    def test_historical_day_export_stops_before_token_lookup_or_http(self):
-        with patch('src.gldrubf_bot.cli.datetime', wraps=datetime) as clock, \
-             patch('src.gldrubf_bot.cli.ReadOnlyClient') as client:
-            clock.now.return_value = TODAY
-            with self.assertRaises(SystemExit) as cm:
-                main(['fetch', '--from', iso(START), '--to', iso(END), '--interval', 'day'])
-        self.assertIn('no historical schedules', str(cm.exception))
-        self.assertIn('verified archived calendar', str(cm.exception))
-        client.assert_not_called()
+    def test_historical_day_export_uses_getcandles_without_calendar(self):
+        calls = []
+        def transport(request, timeout):
+            method = request.full_url.split('contract.v1.')[1]
+            calls.append(method)
+            if method.endswith('/FindInstrument'):
+                result = {'instruments': [dict(uid='fixture', ticker='GLDRUBF', instrumentType='futures')]}
+            elif method.endswith('/FutureBy'):
+                result = {'instrument': dict(uid='fixture', figi='figi', ticker='GLDRUBF', lot=1,
+                    currency='rub', exchange='FORTS_EVENING', minPriceIncrement=q(1))}
+            else:
+                self.assertEqual(method, 'MarketDataService/GetCandles')
+                result = {'candles': []}
+            return FakeResponse(json.dumps(result).encode())
+        client = make_client(transport=transport)
+        with TemporaryDirectory() as directory, patch('src.gldrubf_bot.cli.ReadOnlyClient', return_value=client), \
+             contextlib.redirect_stdout(io.StringIO()):
+            main(['fetch', '--from', iso(START), '--to', iso(END), '--interval', 'day', '--output', directory])
+            report = json.loads((Path(directory)/'validation.json').read_text())
+            self.assertFalse(report['coverage_confirmed'])
+            self.assertEqual(report['count'], 0)
+        self.assertNotIn(METHOD, calls)
 
     def test_future_or_invalid_range_rejected_before_http(self):
         with patch('src.gldrubf_bot.cli.datetime', wraps=datetime) as clock, \

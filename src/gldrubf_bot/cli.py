@@ -15,6 +15,8 @@ from .engine import PaperEngine, Costs
 from .io import records, bars_csv, quotes_csv, funding_csv, calendar_json, save_calendar
 from .models import DataError, UTC, instant, iso, number
 from .strategy import DailyClose, crossover
+from .history import download_daily, load_snapshot, digest, encoded, write_json
+from .research import replay_history, forward_step, refresh_forward, bind_mode, timing_evidence
 
 
 def read_daily_closes(path):
@@ -59,6 +61,7 @@ def market_open(calendar, timestamp):
 
 
 def paper_step(engine, client, instrument, clock=lambda: datetime.now(UTC), max_age=120):
+    """Legacy calendar-backed regression harness; CLI Forward uses forward_step."""
     if client.point_value(instrument) != engine.costs.point_value_rub:
         raise DataError('Monetary tick specification changed; stop before revaluing persistent positions')
     now = instant(clock())
@@ -89,6 +92,15 @@ def costs_from(args, point_value, tick):
                  if args.funding_per_contract_day_rub is not None else None)
 
 
+def protect_research_inputs(args):
+    history, output, db = args.history.resolve(), args.output.resolve(), args.db.resolve()
+    if history == output or history in output.parents or history == db or history in db.parents:
+        raise DataError('Research output/database must not overwrite a source snapshot')
+    inputs = [args.evidence] + ([args.quotes] if hasattr(args, 'quotes') else [])
+    if any(p.resolve() == db or p.resolve() == output or output in p.resolve().parents for p in inputs):
+        raise DataError('Keep evidence/quotes outside derived output and database paths')
+
+
 def replay(args):
     bars, quotes = bars_csv(args.bars), quotes_csv(args.quotes)
     calendar = calendar_json(args.calendar, args.uid)
@@ -108,6 +120,8 @@ def replay(args):
     rates = funding_csv(args.funding_csv) if args.funding_csv else None
     with runner_lock(args.db):
         engine = PaperEngine(args.db, args.uid, costs_from(args, args.point_value_rub, args.tick_size), funding_rates=rates)
+        bind_mode(engine, 'calendar-replay', dict(bars=digest(args.bars.read_bytes()),
+            quotes=digest(args.quotes.read_bytes()), calendar=digest(args.calendar.read_bytes())))
         # Replay restarts re-consume identical events: duplicates are verified by payload and ignored.
         events = [(b.closed_at, 0, b) for b in bars] + [(q.time, 1, q) for q in quotes]
         for _, kind, event in sorted(events, key=lambda e: (e[0], e[1])):
@@ -128,22 +142,14 @@ def fetch(args):
     if args.interval == 'day':
         if start.time() != daytime.min:
             raise DataError('Daily export --from must be UTC midnight (official date labels)')
-        if start.date() < now.date():
-            raise DataError('TradingSchedules has no historical schedules; daily historical export '
-                            'requires a verified archived calendar. No calendar is fabricated. '
-                            'Use diagnose_trading_schedules_windows.cmd to inspect the API safely.')
     client = ReadOnlyClient()
     instrument = client.instrument(args.uid)
-    args.output.mkdir(parents=True, exist_ok=True)
     if args.interval == 'day':
-        bars, calendar = client.completed_daily(instrument, start, end)
-        with (args.output / 'daily.csv').open('w', encoding='utf-8-sig', newline='') as f:
-            names = ['day', 'time', 'closed_at', 'open', 'high', 'low', 'close', 'volume', 'complete']
-            w = csv.DictWriter(f, fieldnames=names)
-            w.writeheader()
-            w.writerows(b.payload() for b in bars)
-        save_calendar(args.output / 'calendar.json', instrument, calendar)
+        download_daily(client, instrument, start, end, args.output, previous=args.compare)
+        print('GetCandles snapshot saved; inspect validation.json. Calendar/timing coverage is NOT certified.')
+        return
     else:
+        args.output.mkdir(parents=True, exist_ok=True)
         rows = client.candles(instrument.uid, start, end, 'CANDLE_INTERVAL_1_MIN')
         with (args.output / 'minute.csv').open('w', encoding='utf-8-sig', newline='') as f:
             w = csv.writer(f)
@@ -157,39 +163,72 @@ def fetch(args):
 
 
 def run_paper(args):
-    if args.poll_seconds < 10 or args.max_quote_age < 1:
-        raise DataError('Polling must be >=10s and quote age positive')
+    if args.poll_seconds < 60 or args.max_quote_age < 1:
+        raise DataError('Forward polling must be >=60s and quote age positive')
+    protect_research_inputs(args)
+    timing_evidence(args.history, args.evidence, forward=True)
     args.output.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger('paper')
     logger.setLevel(logging.INFO)
     handler = logging.FileHandler(args.output / 'operations.log', encoding='utf-8')
     logger.addHandler(handler)
-    with runner_lock(args.db):
-        client = ReadOnlyClient()
-        instrument = client.instrument(args.uid)
-        costs = costs_from(args, client.point_value(instrument), instrument.tick)
-        rates = funding_csv(args.funding_csv) if args.funding_csv else None
-        engine = PaperEngine(args.db, instrument.uid, costs, funding_rates=rates)
-        while True:
-            try:
-                if args.funding_csv:
-                    engine.rates = {date.fromisoformat(k): v for k, v in funding_csv(args.funding_csv).items()}
-                event = paper_step(engine, client, instrument, max_age=args.max_quote_age)
-                engine.export(args.output)
-                message = json.dumps(dict(time=iso(datetime.now(UTC)), event=event, **engine.summary()), ensure_ascii=False)
-                logger.info(message)
-                print(message, flush=True)
-            except APIError as exc:
-                logger.warning('API_UNAVAILABLE: %s', exc)
-                print('API unavailable: no fill; persistent state retained.', flush=True)
-                if args.once:
+    try:
+        with runner_lock(args.db):
+            client = ReadOnlyClient()
+            instrument = client.instrument(args.uid)
+            costs = costs_from(args, client.point_value(instrument), instrument.tick)
+            rates = funding_csv(args.funding_csv) if args.funding_csv else None
+            engine = PaperEngine(args.db, instrument.uid, costs, funding_rates=rates)
+            previous = args.history
+            checks = args.output / 'forward_checks'
+            checks.mkdir(exist_ok=True)
+            def audit(payload):
+                path = checks / (digest(encoded(payload)) + '.json')
+                if not path.exists():
+                    write_json(path, payload)
+            while True:
+                try:
+                    if args.funding_csv:
+                        engine.rates = {date.fromisoformat(k): v for k, v in funding_csv(args.funding_csv).items()}
+                    refresh = args.output / 'history' / datetime.now(UTC).strftime('%Y%m%dT%H%M%S_%fZ')
+                    snapshot = refresh_forward(client, instrument, previous, refresh)
+                    event = forward_step(engine, client, instrument, snapshot, args.evidence,
+                                         max_age=args.max_quote_age, audit=audit)
+                    previous = snapshot
+                    engine.export(args.output)
+                    message = json.dumps(dict(time=iso(datetime.now(UTC)), event=event, **engine.summary()), ensure_ascii=False)
+                    logger.info(message)
+                    print(message, flush=True)
+                except APIError as exc:
+                    logger.warning('API_UNAVAILABLE: %s', exc)
+                    print('API unavailable: no fill; persistent state retained.', flush=True)
+                    if args.once:
+                        raise
+                except DataError as exc:
+                    logger.error('DATA_STOP: %s', exc)
                     raise
-            except DataError as exc:
-                logger.error('DATA_STOP: %s', exc)
-                raise
-            if args.once:
-                break
-            time.sleep(args.poll_seconds)
+                if args.once:
+                    break
+                time.sleep(args.poll_seconds)
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def run_historical_replay(args):
+    protect_research_inputs(args)
+    manifest, _ = load_snapshot(args.history)
+    if args.uid and args.uid != manifest['uid']:
+        raise DataError('Replay UID differs from snapshot')
+    rates = funding_csv(args.funding_csv) if args.funding_csv else None
+    with runner_lock(args.db):
+        engine = PaperEngine(args.db, manifest['uid'], costs_from(args, args.point_value_rub, args.tick_size), funding_rates=rates)
+        report = replay_history(engine, args.history, args.evidence, args.quotes)
+        engine.export(args.output)
+        # SQLite stores the same immutable context; this report is replaceable output.
+        path = args.output / 'research.json'
+        path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(json.dumps(dict(**report, **engine.summary()), ensure_ascii=False, indent=2))
 
 
 def parser():
@@ -203,7 +242,8 @@ def parser():
     f.add_argument('--interval', choices=['day', '1min'], default='day')
     f.add_argument('--output', type=Path, default=Path('data'))
     f.add_argument('--uid')
-    for name in ('replay', 'paper'):
+    f.add_argument('--compare', type=Path, help='Previous immutable day snapshot for revision detection')
+    for name in ('replay', 'historical-replay', 'paper'):
         c = commands.add_parser(name)
         c.add_argument('--db', type=Path, default=Path('paper.sqlite3'))
         c.add_argument('--output', type=Path, default=Path('logs'))
@@ -214,12 +254,18 @@ def parser():
         g = c.add_mutually_exclusive_group(required=True)
         g.add_argument('--funding-per-contract-day-rub', help='Signed fixed daily scenario: positive = long pays / short receives')
         g.add_argument('--funding-csv', type=Path, help='day,long_cost_rub; actual data or clearly labelled assumptions')
-        if name == 'replay':
-            for arg in ('bars', 'quotes', 'calendar'):
+        if name in {'replay', 'historical-replay'}:
+            if name == 'replay':
+                required_paths = ('bars', 'quotes', 'calendar')
+            else:
+                required_paths = ('history', 'evidence', 'quotes')
+            for arg in required_paths:
                 c.add_argument('--' + arg, type=Path, required=True)
             c.add_argument('--point-value-rub', required=True, help='Historical RUB per price point per contract: do not invent')
             c.add_argument('--tick-size', required=True)
         else:
+            c.add_argument('--history', type=Path, required=True, help='Initial immutable GetCandles snapshot')
+            c.add_argument('--evidence', type=Path, required=True, help='Verified trading-date/completion/coverage evidence')
             c.add_argument('--poll-seconds', type=int, default=60)
             c.add_argument('--max-quote-age', type=int, default=120)
             c.add_argument('--once', action='store_true')
@@ -238,6 +284,8 @@ def main(argv=None):
             fetch(args)
         elif args.command == 'replay':
             replay(args)
+        elif args.command == 'historical-replay':
+            run_historical_replay(args)
         else:
             run_paper(args)
     except (APIError, DataError, ValueError) as exc:

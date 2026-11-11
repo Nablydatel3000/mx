@@ -220,7 +220,6 @@ class HTTPDiagnosticsTests(unittest.TestCase):
             METHOD: {'instruments': [{'uid': UID, 'ticker': 'GLDRUBF', 'instrumentType': 'futures'}]},
             'InstrumentsService/FutureBy': {'instrument': dict(uid=UID, ticker='GLDRUBF', lot=1,
                 currency='rub', figi='fixture', exchange='MOEX_FUT', minPriceIncrement=q(1))},
-            'InstrumentsService/TradingSchedules': {'exchanges': [{'exchange': 'MOEX_FUT', 'days': [day()]}]},
             'MarketDataService/GetCandles': {'candles': [candle()]},
         }
         methods = list(responses)
@@ -247,4 +246,5 @@ class HTTPDiagnosticsTests(unittest.TestCase):
                 self.assertIn('content_type=text/html', str(cm.exception))
                 self.assertNotIn(SECRET, ''.join(traceback.format_exception(cm.exception)))
                 self.assertEqual(calls, methods[:index + 1])
+                self.assertNotIn('InstrumentsService/TradingSchedules', calls)
                 self.assertFalse(list(Path(directory).rglob('*.csv')))

@@ -236,7 +236,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class ReadOnlyClient:
-    def __init__(self, *, transport=None, sleep=time.sleep, attempts=3):
+    def __init__(self, *, transport=None, sleep=time.sleep, attempts=3, on_candles=None):
         self._token = os.environ.get('T_INVEST_TOKEN', '')
         if not self._token or any(c.isspace() for c in self._token):
             raise APIError('Set T_INVEST_TOKEN in the process environment; never send it in chat')
@@ -244,6 +244,7 @@ class ReadOnlyClient:
             raise ValueError('Attempts must be 1..5')
         self.transport = transport or urllib.request.build_opener(NoRedirect()).open
         self.sleep, self.attempts = sleep, attempts
+        self.on_candles = on_candles
 
     def call(self, method, payload):
         if method not in ALLOWED:
@@ -274,6 +275,11 @@ class ReadOnlyClient:
                     raise _failure(method, status, content_type, 'unexpected_json_type')
                 if content_type == 'application/problem+json' or any(k in result for k in ('code', 'error', 'message')):
                     raise _failure(method, status, content_type, 'api_error_envelope', codes=extract_codes(result))
+                if method == 'MarketDataService/GetCandles' and self.on_candles is not None:
+                    try:
+                        self.on_candles(dict(payload), data)
+                    except OSError:
+                        raise DataError('Cannot persist raw GetCandles response; no automatic retry') from None
                 return result
             except urllib.error.HTTPError as exc:
                 try:
@@ -353,10 +359,12 @@ class ReadOnlyClient:
         while cursor < end:
             finish = min(cursor + step, end)
             response = self.call('MarketDataService/GetCandles', {'instrumentId': uid, 'from': iso(cursor), 'to': iso(finish), 'interval': interval, 'candleSourceType': 'CANDLE_SOURCE_EXCHANGE', 'limit': 2400})
-            if not isinstance(response.get('candles'), list):
+            if not isinstance(response.get('candles', []), list):
                 raise DataError('Missing candles array')
-            for raw in response['candles']:
+            for raw in response.get('candles', []):  # Protobuf may omit an empty repeated field.
                 raw = dict(raw)
+                if raw.get('instrumentUid', uid) != uid:
+                    raise DataError('Candle UID mismatch')
                 complete = raw.get('isComplete', False)
                 if type(complete) is not bool:
                     raise DataError('Invalid API candle completion flag')

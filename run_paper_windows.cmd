@@ -7,4 +7,6 @@ if not exist ".venv\Scripts\python.exe" (
  exit /b 1
 )
 ".venv\Scripts\python.exe" -m src.gldrubf_bot.windows paper
-pause
+set "BOT_EXIT=%ERRORLEVEL%"
+pause >nul
+exit /b %BOT_EXIT%

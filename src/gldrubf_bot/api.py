@@ -384,6 +384,28 @@ class ReadOnlyClient:
                 raise DataError('Calendar date missing: ' + d.isoformat())
         return days
 
+    def current_sessions(self, exchange, now):
+        """Execution permission only: inspect actual windows, not weekday labels.
+
+        Include the next label for UTC/MSK midnight overlaps. A returned future
+        date does not authorize execution until its actual window contains now.
+        No historical request or inferred session/trading date is used.
+        """
+        now = instant(now)
+        start = datetime.combine(now.date(), daytime.min, UTC)
+        result = self.call('InstrumentsService/TradingSchedules', dict(exchange=exchange,
+            **{'from': iso(start), 'to': iso(start + timedelta(days=2))}))
+        matching = [x for x in result.get('exchanges', []) if x.get('exchange') == exchange]
+        if len(matching) != 1:
+            raise DataError('Missing/ambiguous current exchange calendar; no permission inferred')
+        days = {}
+        for raw in matching[0].get('days', []):
+            day = parse_day(raw)
+            if day.day in days and days[day.day] != day:
+                raise DataError('Conflicting current session records')
+            days[day.day] = day
+        return days
+
     def candles(self, uid, start, end, interval='CANDLE_INTERVAL_DAY'):
         start, end = instant(start), instant(end)
         if start >= end or interval not in {'CANDLE_INTERVAL_DAY', 'CANDLE_INTERVAL_1_MIN'}:

@@ -38,8 +38,9 @@ def run():
     else:
         args = [mode]
         if mode == 'paper':
-            args += ['--history', ask('Initial GetCandles snapshot folder'),
-                     '--evidence', ask('VERIFIED trading-date, completion and coverage JSON path')]
+            history = ask('Initial GetCandles snapshot folder (blank: automatic 730-day history)')
+            if history:
+                args += ['--history', history]
             token()
         elif mode == 'historical-replay':
             args += ['--history', ask('GetCandles snapshot folder'),
@@ -56,16 +57,19 @@ def run():
                      '--tick-size', ask('HISTORICAL tick size')]
         else:
             raise SystemExit('Unsupported mode; there is no LIVE mode.')
-        args += ['--db', ask('NEW PAPER database path (reuse exactly to resume)', 'paper_v1.sqlite3'),
+        args += ['--db', ask('NEW PAPER database path (reuse exactly to resume)',
+                            'paper_auto_v2.sqlite3' if mode=='paper' else 'paper_v1.sqlite3'),
                  '--output', ask('Journal folder', 'logs'),
                  '--commission-rub', ask('Commission RUB per contract SIDE (explicit assumption)'),
                  '--slippage-ticks', ask('Adverse slippage in whole ticks (explicit assumption)'),
                  '--initial-cash-rub', ask('Virtual initial cash RUB', '100000')]
-        funding = ask('Funding rates CSV path, or leave blank for FIXED daily scenario')
+        funding = ask('Funding rates CSV path, or leave blank for FIXED scenario')
         if funding:
             args += ['--funding-csv', funding]
         else:
-            args += ['--funding-per-contract-day-rub', ask('Daily RUB: positive long pays/short receives; 0 means ignored by assumption')]
+            label = ('RUB per NEW confirmed candle at observation (PAPER assumption, NOT broker daily funding)'
+                     if mode == 'paper' else 'Daily RUB: positive long pays/short receives; 0 means ignored by assumption')
+            args += ['--confirmation-cost-rub' if mode=='paper' else '--funding-per-contract-day-rub', ask(label)]
     main(args)
 
 

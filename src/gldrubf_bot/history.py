@@ -101,7 +101,7 @@ def compare_rows(old_manifest, old_rows, uid, rows, start, end):
     return changes
 
 
-def download_daily(client, instrument, start, end, directory, *, previous=None, clock=lambda: datetime.now(UTC)):
+def download_daily(client, instrument, start, end, directory, *, previous=None, clock=lambda: datetime.now(UTC), make_template=True):
     start, end, now = instant(start), instant(end), instant(clock())
     if instrument.ticker != 'GLDRUBF' or not instrument.uid or start >= end or end > now:
         raise DataError('Invalid GLDRUBF snapshot UID/range')
@@ -181,11 +181,12 @@ def download_daily(client, instrument, start, end, directory, *, previous=None, 
                         **{'from': iso(start), 'to': iso(end)}, captured_at=iso(last_observation),
                         status=report['status'], candles_sha256=digest((root/'candles.json').read_bytes()), raw=raw_manifest)
         write_json(root / 'manifest.json', manifest)
-        write_json(root / 'evidence_template.json', dict(schema=1, uid=instrument.uid,
-            snapshot_sha256=manifest['candles_sha256'], kind='unresolved', source='', coverage_source='',
-            expected_trade_days=[], coverage_through=None, execution_windows=[], quote_uid=instrument.uid, quotes_sha256='', quote_source='',
-            rows=[dict(time=r['time'], candle_sha256=candle_hash(r), trade_day=None, completed_at=None, available_at=None)
-                  for r in rows if r['is_complete']]))
+        if make_template:
+            write_json(root / 'evidence_template.json', dict(schema=1, uid=instrument.uid,
+                snapshot_sha256=manifest['candles_sha256'], kind='unresolved', source='', coverage_source='',
+                expected_trade_days=[], coverage_through=None, execution_windows=[], quote_uid=instrument.uid, quotes_sha256='', quote_source='',
+                rows=[dict(time=r['time'], candle_sha256=candle_hash(r), trade_day=None, completed_at=None, available_at=None)
+                      for r in rows if r['is_complete']]))
         if blocked:
             raise DataError('Previously completed candles changed/disappeared; inspect validation.json')
     except BaseException as exc:

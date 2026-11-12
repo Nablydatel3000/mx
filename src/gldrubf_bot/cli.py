@@ -17,6 +17,7 @@ from .models import DataError, UTC, instant, iso, number
 from .strategy import DailyClose, crossover
 from .history import download_daily, load_snapshot, digest, encoded, write_json
 from .research import replay_history, forward_step, refresh_forward, bind_mode, timing_evidence
+from . import autonomous
 
 
 def read_daily_closes(path):
@@ -93,10 +94,11 @@ def costs_from(args, point_value, tick):
 
 
 def protect_research_inputs(args):
-    history, output, db = args.history.resolve(), args.output.resolve(), args.db.resolve()
-    if history == output or history in output.parents or history == db or history in db.parents:
+    history = args.history.resolve() if args.history else None
+    output, db = args.output.resolve(), args.db.resolve()
+    if history and (history == output or history in output.parents or history == db or history in db.parents):
         raise DataError('Research output/database must not overwrite a source snapshot')
-    inputs = [args.evidence] + ([args.quotes] if hasattr(args, 'quotes') else [])
+    inputs = ([args.evidence] if args.evidence else []) + ([args.quotes] if hasattr(args, 'quotes') else [])
     if any(p.resolve() == db or p.resolve() == output or output in p.resolve().parents for p in inputs):
         raise DataError('Keep evidence/quotes outside derived output and database paths')
 
@@ -166,7 +168,11 @@ def run_paper(args):
     if args.poll_seconds < 60 or args.max_quote_age < 1:
         raise DataError('Forward polling must be >=60s and quote age positive')
     protect_research_inputs(args)
-    timing_evidence(args.history, args.evidence, forward=True)
+    if args.evidence:
+        if not args.history:
+            raise DataError('Legacy verified mode requires --history')
+        timing_evidence(args.history, args.evidence, forward=True)
+    initial = load_snapshot(args.history)[0] if args.history else None
     args.output.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger('paper')
     logger.setLevel(logging.INFO)
@@ -175,10 +181,23 @@ def run_paper(args):
     try:
         with runner_lock(args.db):
             client = ReadOnlyClient()
-            instrument = client.instrument(args.uid)
-            costs = costs_from(args, client.point_value(instrument), instrument.tick)
+            while True:
+                try:
+                    instrument = client.instrument(args.uid)
+                    costs = costs_from(args, client.point_value(instrument), instrument.tick)
+                    break
+                except APIError as exc:
+                    logger.warning('API_STARTUP_UNAVAILABLE: %s',exc)
+                    if args.once or not exc.retryable:
+                        raise
+                    print('API startup unavailable: waiting; no virtual execution.',flush=True)
+                    time.sleep(args.poll_seconds)
+            if initial and initial['uid'] != instrument.uid:
+                raise DataError('Initial history UID differs from API instrument')
             rates = funding_csv(args.funding_csv) if args.funding_csv else None
             engine = PaperEngine(args.db, instrument.uid, costs, funding_rates=rates)
+            start = autonomous.source_start(engine,datetime.now(UTC),
+                requested=initial['from'] if initial else None,history_days=args.history_days) if not args.evidence else None
             previous = args.history
             checks = args.output / 'forward_checks'
             checks.mkdir(exist_ok=True)
@@ -191,18 +210,24 @@ def run_paper(args):
                     if args.funding_csv:
                         engine.rates = {date.fromisoformat(k): v for k, v in funding_csv(args.funding_csv).items()}
                     refresh = args.output / 'history' / datetime.now(UTC).strftime('%Y%m%dT%H%M%S_%fZ')
-                    snapshot = refresh_forward(client, instrument, previous, refresh)
-                    event = forward_step(engine, client, instrument, snapshot, args.evidence,
-                                         max_age=args.max_quote_age, audit=audit)
+                    if args.evidence:
+                        snapshot = refresh_forward(client, instrument, previous, refresh)
+                        event = forward_step(engine, client, instrument, snapshot, args.evidence,
+                                             max_age=args.max_quote_age, audit=audit)
+                    else:
+                        snapshot = download_daily(client,instrument,start,datetime.now(UTC),refresh,
+                                                  previous=previous,make_template=False)
+                        event = autonomous.step(engine,client,instrument,snapshot,max_age=args.max_quote_age,audit=audit)
                     previous = snapshot
                     engine.export(args.output)
-                    message = json.dumps(dict(time=iso(datetime.now(UTC)), event=event, **engine.summary()), ensure_ascii=False)
+                    message = json.dumps(dict(time=iso(datetime.now(UTC)), event=event,
+                        mode='legacy-verified' if args.evidence else autonomous.MODE, **engine.summary()), ensure_ascii=False)
                     logger.info(message)
                     print(message, flush=True)
                 except APIError as exc:
                     logger.warning('API_UNAVAILABLE: %s', exc)
                     print('API unavailable: no fill; persistent state retained.', flush=True)
-                    if args.once:
+                    if args.once or not exc.retryable:
                         raise
                 except DataError as exc:
                     logger.error('DATA_STOP: %s', exc)
@@ -245,14 +270,17 @@ def parser():
     f.add_argument('--compare', type=Path, help='Previous immutable day snapshot for revision detection')
     for name in ('replay', 'historical-replay', 'paper'):
         c = commands.add_parser(name)
-        c.add_argument('--db', type=Path, default=Path('paper.sqlite3'))
+        c.add_argument('--db', type=Path, default=Path('paper_auto_v2.sqlite3' if name=='paper' else 'paper.sqlite3'))
         c.add_argument('--output', type=Path, default=Path('logs'))
         c.add_argument('--uid', required=name == 'replay')
         c.add_argument('--commission-rub', required=True, help='RUB per one-contract side, explicit scenario')
         c.add_argument('--slippage-ticks', required=True, type=int)
         c.add_argument('--initial-cash-rub', default='100000', help='Research balance, not broker funds')
         g = c.add_mutually_exclusive_group(required=True)
-        g.add_argument('--funding-per-contract-day-rub', help='Signed fixed daily scenario: positive = long pays / short receives')
+        funding_flags = ['--funding-per-contract-day-rub'] + (['--confirmation-cost-rub'] if name=='paper' else [])
+        g.add_argument(*funding_flags, dest='funding_per_contract_day_rub',
+            help=('Autonomous PAPER: cost per newly confirmed provider candle; legacy/replay: daily scenario. '
+                  'Positive = long pays / short receives; zero explicitly ignores this cost.'))
         g.add_argument('--funding-csv', type=Path, help='day,long_cost_rub; actual data or clearly labelled assumptions')
         if name in {'replay', 'historical-replay'}:
             if name == 'replay':
@@ -264,8 +292,9 @@ def parser():
             c.add_argument('--point-value-rub', required=True, help='Historical RUB per price point per contract: do not invent')
             c.add_argument('--tick-size', required=True)
         else:
-            c.add_argument('--history', type=Path, required=True, help='Initial immutable GetCandles snapshot')
-            c.add_argument('--evidence', type=Path, required=True, help='Verified trading-date/completion/coverage evidence')
+            c.add_argument('--history', type=Path, help='Optional initial snapshot; otherwise automatically fetch history')
+            c.add_argument('--history-days',type=int,default=730,help='Initial calendar lookback; pinned in SQLite on restart')
+            c.add_argument('--evidence', type=Path, help='Optional legacy verified mode; autonomous mode needs no evidence')
             c.add_argument('--poll-seconds', type=int, default=60)
             c.add_argument('--max-quote-age', type=int, default=120)
             c.add_argument('--once', action='store_true')

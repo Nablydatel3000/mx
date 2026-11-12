@@ -5,11 +5,11 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from .models import Bar, Quote, DataError, instant, iso, number
+from .models import Bar, Quote, DataError, MOSCOW, instant, iso, number
 from .strategy import DailyClose, crossover
 
 
@@ -95,6 +95,21 @@ class PaperEngine:
                          (iso(cutoff),)).fetchone()
         return row[0] if row else 0
 
+    def _funding_cutoff(self, row):
+        payload = json.loads(row['payload'])
+        if payload.get('kind') == 'provider_daily_observed':
+            from .history import candle_hash, validate_rows
+            source = payload['candle']
+            confirmed = instant(payload['first_confirmed_at'])
+            validate_rows([dict(source, observed_at=iso(confirmed))], self.uid,
+                          instant(source['time']), instant(source['time']) + timedelta(microseconds=1))
+            if (not source['is_complete'] or source['provider_day'] != row['day'] or
+                    iso(confirmed) != row['known_at'] or candle_hash(source) != payload['candle_sha256'] or
+                    payload['provider_time_msk'] != instant(source['time']).astimezone(MOSCOW).isoformat()):
+                raise DataError('Corrupt observed candle identity/confirmation time')
+            return confirmed
+        return instant(payload['closed_at'])
+
     def _validate_state(self, db):
         if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
             raise DataError('SQLite integrity check failed')
@@ -128,10 +143,9 @@ class PaperEngine:
             raise DataError('Funding coverage disagrees with processed daily bars')
         funding = Decimal(0)
         for f in funding_rows.values():
-            payload = json.loads(bar_rows[f['day']]['payload'])
-            cutoff = instant(payload['closed_at'])
+            cutoff = self._funding_cutoff(bar_rows[f['day']])
             if instant(f['effective_at']) != cutoff:
-                raise DataError('Funding cutoff disagrees with official bar completion')
+                raise DataError('Funding cutoff disagrees with bar model clock')
             if f['position'] != self._position_before(db, cutoff):
                 raise DataError('Funding position disagrees with historical fills at cutoff')
             if self.costs.funding_daily_rub is not None and number(f['long_cost']) != self.costs.funding_daily_rub:
@@ -149,6 +163,30 @@ class PaperEngine:
             raise DataError('Invalid pending signal state')
         if state['pending']:
             instant(state['pending_after'])
+        if bar_rows and any(json.loads(r['payload']).get('kind')=='provider_daily_observed' for r in bar_rows.values()):
+            history, latest = [], None
+            for label,row in sorted(bar_rows.items()):
+                payload=json.loads(row['payload'])
+                if payload.get('kind')!='provider_daily_observed':
+                    raise DataError('Mixed daily clocks in autonomous ledger')
+                history.append(DailyClose(date.fromisoformat(label),float(payload['candle']['close'])))
+                target=crossover(history).target if len(history)>=51 else 0
+                if row['target']!=target:
+                    raise DataError('Stored SMA target disagrees with completed candle prefix')
+                if target:
+                    latest=row
+            if state['pending']:
+                if (latest is None or state['pending']!=latest['target'] or state['pending_day']!=latest['day']
+                        or state['pending_after']!=latest['known_at']):
+                    raise DataError('Pending signal disagrees with latest SMA crossing')
+                if db.execute('SELECT 1 FROM quotes WHERE time>? LIMIT 1',(latest['known_at'],)).fetchone():
+                    raise DataError('Pending signal was already consumed')
+            elif latest:
+                consumed=db.execute('SELECT 1 FROM quotes WHERE time>? LIMIT 1',(latest['known_at'],)).fetchone()
+                if not consumed or state['position']!=latest['target']:
+                    raise DataError('Consumed SMA target disagrees with position/observations')
+            elif state['position']:
+                raise DataError('Position exists without an observed SMA crossing')
 
     def latest_day(self):
         with self.db() as db:
@@ -221,6 +259,68 @@ class PaperEngine:
                 if target:
                     db.execute('UPDATE state SET pending=?,pending_day=?,pending_after=? WHERE id=1',
                                (target, bar.day.isoformat(), iso(known_at)))
+
+    def process_observed_candles(self, rows, known_at, *, source_start, source_end):
+        """Accept API-complete observations, without inventing historical closes.
+
+        day is a provider UTC label used for ordering, NOT a verified session date.
+        Funding is an explicit per-newly-confirmed-candle scenario at observation
+        time, not an assertion of broker settlement time. Bootstrap is flat.
+        """
+        from .history import candle_identity, candle_hash, validate_rows
+        known_at, source_start, source_end = map(instant, (known_at, source_start, source_end))
+        validate_rows(rows, self.uid, source_start, source_end)
+        if source_end > known_at or any(instant(r['observed_at']) > known_at for r in rows):
+            raise DataError('Future candle observations cannot form signals')
+        complete = {r['provider_day']: r for r in rows if r['is_complete']}
+        if len(complete) < 51:
+            raise DataError('Need 51 API-completed provider candles; no artificial warmup')
+        with self.db() as db:
+            cached = list(db.execute('SELECT * FROM bars ORDER BY day'))
+            for old in cached:
+                payload = json.loads(old['payload'])
+                if payload.get('kind') != 'provider_daily_observed':
+                    raise DataError('Cannot mix session-timed and provider-observed bars')
+                source = payload['candle']
+                current = complete.get(old['day'])
+                if current is None or candle_identity(current) != source:
+                    raise DataError('Previously accepted completed candle changed/disappeared')
+                if self.costs.funding_daily_rub is None:
+                    applied = db.execute('SELECT long_cost,position FROM funding WHERE day=?',(old['day'],)).fetchone()
+                    rate = self.rates.get(date.fromisoformat(old['day']))
+                    if applied and applied['position'] and (rate is None or rate != number(applied['long_cost'])):
+                        raise DataError('Missing/revised previously applied financing scenario')
+            last_known = instant(cached[-1]['known_at']) if cached else None
+            quote = db.execute('SELECT time FROM quotes ORDER BY time DESC LIMIT 1').fetchone()
+            if (last_known and known_at < last_known) or (quote and known_at < instant(quote[0])):
+                raise DataError('Clock/observation moved backwards')
+            history = [DailyClose(date.fromisoformat(r['day']), float(json.loads(r['payload'])['candle']['close'])) for r in cached]
+            seen = {r['day'] for r in cached}
+            for label, row in complete.items():
+                if label in seen:
+                    continue
+                if history and date.fromisoformat(label) <= history[-1].day:
+                    raise DataError('Late insertion changes an already accepted SMA prefix; review data')
+                rate = self.costs.funding_daily_rub
+                held = self._position_before(db, known_at)
+                if rate is None:
+                    rate = self.rates.get(date.fromisoformat(label))
+                    if rate is None and held:
+                        raise DataError('Missing provider-label financing scenario; batch stopped')
+                    rate = rate if rate is not None else Decimal(0)
+                payload = dict(kind='provider_daily_observed', candle=candle_identity(row),
+                    candle_sha256=candle_hash(row), first_confirmed_at=iso(known_at),
+                    provider_time_msk=instant(row['time']).astimezone(MOSCOW).isoformat())
+                history.append(DailyClose(date.fromisoformat(label), float(row['close'])))
+                target = crossover(history).target if len(history) >= 51 else 0
+                db.execute('INSERT INTO bars VALUES (?,?,?,?)', (label,json.dumps(payload,sort_keys=True),iso(known_at),target))
+                cash = -held*rate
+                db.execute('INSERT INTO funding VALUES (?,?,?,?,?)', (label,iso(known_at),str(rate),held,str(cash)))
+                state = db.execute('SELECT funding FROM state WHERE id=1').fetchone()
+                db.execute('UPDATE state SET funding=? WHERE id=1', (str(number(state[0])+cash),))
+                if target:
+                    db.execute('UPDATE state SET pending=?,pending_day=?,pending_after=? WHERE id=1',
+                               (target,label,iso(known_at)))
 
     def observe(self, quote):
         """Fill at the first eligible OBSERVED price strictly after signal knowledge.

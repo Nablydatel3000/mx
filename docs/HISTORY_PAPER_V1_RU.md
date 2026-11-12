@@ -1,5 +1,11 @@
 # GLDRUBF v1.0: история, replay, Forward PAPER
 
+> Исторический отчёт предыдущей реализации. По умолчанию Forward PAPER теперь
+> использует автоматические наблюдения `isComplete` без ручной evidence:
+> [актуальный архитектурный аудит](AUTONOMOUS_FORWARD_AUDIT_RU.md).
+> Описанные ниже требования evidence действуют для historical replay и явно
+> выбранного legacy verified Forward. Старые базы и часы расчёта не мигрируются.
+
 Дата: 2026-11-11. База изменений: c7b87ba. Ветка gldrubf-v1-paper-api, PR #1.
 
 ## Что изменено

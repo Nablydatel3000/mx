@@ -1,9 +1,11 @@
 """Validated UTC market events. A trading-day label is not a local midnight."""
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal, InvalidOperation
 
 UTC = timezone.utc
+# Display only, for modern GLDRUBF observations; never a session-date mapper.
+MOSCOW = timezone(timedelta(hours=3), 'MSK')
 
 
 class DataError(ValueError):

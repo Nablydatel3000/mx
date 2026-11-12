@@ -12,9 +12,9 @@ from .models import Bar, DataError, UTC, instant, iso
 
 def software_identity():
     root = Path(__file__).parent
-    return dict(model='SMA20/50-history-paper-v1', python=platform.python_version(), sqlite=sqlite3.sqlite_version,
+    return dict(model='SMA20/50-multiclock-paper-v2', python=platform.python_version(), sqlite=sqlite3.sqlite_version,
                 sources={name: digest((root/name).read_bytes()) for name in
-                         ('strategy.py','engine.py','api.py','history.py','research.py')})
+                         ('strategy.py','engine.py','api.py','history.py','research.py','autonomous.py')})
 
 
 def timing_evidence(snapshot, path, *, forward=False):
@@ -75,7 +75,7 @@ def bind_mode(engine, mode, settings):
         previous = db.execute('SELECT config FROM workflow_context WHERE id=1').fetchone()
         if previous and previous[0] != config:
             raise DataError('Database mode/assumptions mismatch; use a separate database')
-        if not previous and db.execute('SELECT 1 FROM bars LIMIT 1').fetchone():
+        if not previous and any(db.execute('SELECT 1 FROM '+table+' LIMIT 1').fetchone() for table in ('bars','quotes','fills')):
             raise DataError('Unlabelled existing database cannot be adopted silently')
         db.execute('INSERT OR IGNORE INTO workflow_context VALUES (1,?)', (config,))
 

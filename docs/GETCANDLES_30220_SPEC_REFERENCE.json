@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-11",
+  "official_repository": "RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": {
+    "src/docs/errors/api_errors.json": {
+      "sha256": "49e058c4e6518682be6cec5afeac2b2190bf857a38a26ed6a8b7fc3260b75711",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/errors/api_errors.json"
+    },
+    "src/docs/errors.md": {
+      "sha256": "e00be19f4947af83455446d51999036481c6a2cfbada062b0df6e6154b0006e7",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/errors.md"
+    },
+    "src/docs/contracts/marketdata.proto": {
+      "sha256": "6e7aed90bf5a7d53b857d128c845522ceda80daa5026f1984e5ae9328bd899dd",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/marketdata.proto"
+    },
+    "src/docs/swagger-ui/openapi.yaml": {
+      "sha256": "600bfc6555c1b39d546eb2792c960dc1e73c97d13d069bf6a6acc9a1be49eeb9",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/swagger-ui/openapi.yaml"
+    },
+    "src/docs/faq_marketdata.md": {
+      "sha256": "5063f77cbb2ab8c465410ceee6bf3ff957999fb966b14013f0db9bf99ca51f0f",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/faq_marketdata.md"
+    }
+  },
+  "error_30220": {
+    "message": "`candle_type` not supported when `limit` specified",
+    "type": "INVALID_ARGUMENT",
+    "description": "Входной параметр `candle_type` не может быть задан, если передан `limit`"
+  },
+  "request_required": [
+    "from",
+    "interval",
+    "to"
+  ],
+  "request_properties": {
+    "from": {
+      "description": "Начало запрашиваемого периода по UTC.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "to": {
+      "description": "Окончание запрашиваемого периода по UTC.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "interval": {
+      "$ref": "#/components/schemas/v1CandleInterval"
+    },
+    "instrumentId": {
+      "description": "Идентификатор инструмента. Принимает значение `figi`, `instrument_uid` или `ticker + '_' + class_code`.",
+      "type": "string"
+    },
+    "candleSourceType": {
+      "$ref": "#/components/schemas/v1GetCandlesRequestCandleSource"
+    },
+    "limit": {
+      "description": "Максимальное количество свечей в ответе.",
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  "limit_optional": true,
+  "public_candle_type_field_exists": false,
+  "authenticated_api_executed": false,
+  "windows_executed": false,
+  "gldrubf_first_daily_verified": null
+}

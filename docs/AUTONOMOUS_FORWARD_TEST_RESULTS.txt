@@ -1,0 +1,45 @@
+Date: 2026-11-12 UTC
+Branch: gldrubf-v1-paper-api; existing PR #1
+Audit baseline: fd1e1ce58c45ba78a18445c13434bf0560e4633f
+Platform: Linux; offline synthetic API only; no broker token/orders
+Windows execution: NOT PERFORMED; GitHub API status query: Forbidden
+Real GLDRUBF archive recount / authenticated API: NOT PERFORMED
+
+Python 3.12.14
+COMMAND: Python -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 157 tests in 0.894s
+
+OK
+
+COMMAND: Python -m compileall -q src tests
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli --help
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli paper --help
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli historical-replay --help
+EXIT: 0
+
+Python 3.13.5
+COMMAND: Python -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 157 tests in 0.976s
+
+OK
+
+COMMAND: Python -m compileall -q src tests
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli --help
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli paper --help
+EXIT: 0
+COMMAND: Python -m src.gldrubf_bot.cli historical-replay --help
+EXIT: 0
+
+strategy.py unchanged from baseline: PASS
+strategy.py SHA256: 87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+Windows launchers CRLF byte check: PASS (not cmd.exe execution)
+git diff --check: PASS

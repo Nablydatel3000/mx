@@ -1,0 +1,266 @@
+test_bad_json_is_sanitized (test_api.APIContractTests.test_bad_json_is_sanitized) ... ok
+test_current_margin_contract_uid (test_api.APIContractTests.test_current_margin_contract_uid) ... ok
+test_daily_chunk_endpoint_ignores_time_of_day (test_api.APIContractTests.test_daily_chunk_endpoint_ignores_time_of_day) ... ok
+test_historical_incomplete_day_not_silently_dropped (test_api.APIContractTests.test_historical_incomplete_day_not_silently_dropped) ... ok
+test_history_starts_at_documented_first_daily_candle (test_api.APIContractTests.test_history_starts_at_documented_first_daily_candle) ... ok
+test_unknown_detailed_interval_and_proto_false_default (test_api.APIContractTests.test_unknown_detailed_interval_and_proto_false_default) ... ok
+test_allowlist_and_no_token_echo (test_api.APITests.test_allowlist_and_no_token_echo) ... ok
+test_calendar_completed_and_incomplete (test_api.APITests.test_calendar_completed_and_incomplete) ... ok
+test_candle_pagination_and_conflict (test_api.APITests.test_candle_pagination_and_conflict) ... ok
+test_missing_completed_data_and_calendar (test_api.APITests.test_missing_completed_data_and_calendar) ... ok
+test_quote_status_uid_time_and_quotation (test_api.APITests.test_quote_status_uid_time_and_quotation) ... ok
+test_retry_429_then_success_and_401_no_retry (test_api.APITests.test_retry_429_then_success_and_401_no_retry) ... ok
+test_sessions_clearing_and_weekend_not_guessed (test_api.APITests.test_sessions_clearing_and_weekend_not_guessed) ... ok
+test_uid_resolution_and_mismatch (test_api.APITests.test_uid_resolution_and_mismatch) ... ok
+test_atomic_funding_failure_no_partial_batch (test_engine.EngineTests.test_atomic_funding_failure_no_partial_batch) ... ok
+test_config_identity_and_corrupt_state_fail_closed (test_engine.EngineTests.test_config_identity_and_corrupt_state_fail_closed) ... FAIL
+test_external_funding_revision_detected_after_restart (test_engine.EngineTests.test_external_funding_revision_detected_after_restart) ... ok
+test_flip_long_close_short_open_pnl_fees_funding (test_engine.EngineTests.test_flip_long_close_short_open_pnl_fees_funding) ... ok
+test_next_price_strictly_after_signal_and_restart (test_engine.EngineTests.test_next_price_strictly_after_signal_and_restart) ... ok
+test_off_grid_and_bad_slippage_roll_back (test_engine.EngineTests.test_off_grid_and_bad_slippage_roll_back) ... ok
+test_prefix_no_lookahead (test_engine.EngineTests.test_prefix_no_lookahead) ... ok
+test_repeated_bars_prices_and_revisions (test_engine.EngineTests.test_repeated_bars_prices_and_revisions) ... ok
+test_reversal_transaction_rolls_back_both_legs_on_storage_error (test_engine.EngineTests.test_reversal_transaction_rolls_back_both_legs_on_storage_error) ... FAIL
+test_short_pnl_and_signed_funding (test_engine.EngineTests.test_short_pnl_and_signed_funding) ... ok
+test_subsecond_time_order_and_export (test_engine.EngineTests.test_subsecond_time_order_and_export) ... ok
+test_persistent_idempotence_and_flip (test_paper.PaperTests.test_persistent_idempotence_and_flip) ... FAIL
+test_reject_conflicting_replay (test_paper.PaperTests.test_reject_conflicting_replay) ... FAIL
+test_down_cross (test_strategy.AdditionalStrategyTests.test_down_cross) ... ok
+test_invalid_order_duplicates_and_prices (test_strategy.AdditionalStrategyTests.test_invalid_order_duplicates_and_prices) ... ok
+test_no_cross (test_strategy.StrategyTests.test_no_cross) ... ok
+test_requires_warmup (test_strategy.StrategyTests.test_requires_warmup) ... ok
+test_sma (test_strategy.StrategyTests.test_sma) ... ok
+test_up_cross (test_strategy.StrategyTests.test_up_cross) ... ok
+test_ambiguous_overnight_daily_mapping_is_not_guessed (test_technical_audit.CalendarBoundaryAudit.test_ambiguous_overnight_daily_mapping_is_not_guessed) ... ok
+test_auction_not_a_continuous_market_fill_window (test_technical_audit.CalendarBoundaryAudit.test_auction_not_a_continuous_market_fill_window) ... ok
+test_daily_utc_label_is_not_replaced_by_moscow_date (test_technical_audit.CalendarBoundaryAudit.test_daily_utc_label_is_not_replaced_by_moscow_date) ... ok
+test_day_not_complete_before_original_end_even_if_api_flag_true (test_technical_audit.CalendarBoundaryAudit.test_day_not_complete_before_original_end_even_if_api_flag_true) ... ok
+test_main_evening_clearing_and_timezone_offsets (test_technical_audit.CalendarBoundaryAudit.test_main_evening_clearing_and_timezone_offsets) ... ok
+test_missing_auction_boundary_fails_closed (test_technical_audit.CalendarBoundaryAudit.test_missing_auction_boundary_fails_closed) ... ok
+test_special_saturday_and_holiday_are_calendar_not_weekday_rules (test_technical_audit.CalendarBoundaryAudit.test_special_saturday_and_holiday_are_calendar_not_weekday_rules) ... ok
+test_trailing_clearing_does_not_shorten_official_day (test_technical_audit.CalendarBoundaryAudit.test_trailing_clearing_does_not_shorten_official_day) ... ok
+test_calendar_completion_revision_rejected_atomically (test_technical_audit.FinancingChronologyAudit.test_calendar_completion_revision_rejected_atomically) ... ok
+test_disappeared_cached_day_cannot_silently_remain_in_sma (test_technical_audit.FinancingChronologyAudit.test_disappeared_cached_day_cannot_silently_remain_in_sma) ... ok
+test_fill_exactly_at_cutoff_is_after_funding_snapshot (test_technical_audit.FinancingChronologyAudit.test_fill_exactly_at_cutoff_is_after_funding_snapshot) ... FAIL
+test_flat_day_rate_still_matches_fixed_scenario_on_recovery (test_technical_audit.FinancingChronologyAudit.test_flat_day_rate_still_matches_fixed_scenario_on_recovery) ... FAIL
+test_late_quote_cannot_rewrite_already_settled_position (test_technical_audit.FinancingChronologyAudit.test_late_quote_cannot_rewrite_already_settled_position) ... FAIL
+test_long_short_flip_then_funding_uses_short (test_technical_audit.FinancingChronologyAudit.test_long_short_flip_then_funding_uses_short) ... FAIL
+test_multiday_recovery_charges_held_position_not_new_pending (test_technical_audit.FinancingChronologyAudit.test_multiday_recovery_charges_held_position_not_new_pending) ... ok
+test_recovery_rejects_missing_zero_cash_funding_day (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_missing_zero_cash_funding_day) ... FAIL
+test_recovery_rejects_self_consistent_wrong_funding_position (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_self_consistent_wrong_funding_position) ... FAIL
+test_recovery_rejects_shifted_settlement_time (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_shifted_settlement_time) ... FAIL
+test_short_long_flip_then_funding_uses_long (test_technical_audit.FinancingChronologyAudit.test_short_long_flip_then_funding_uses_long) ... FAIL
+test_watermark_survives_restart_without_new_crossover (test_technical_audit.FinancingChronologyAudit.test_watermark_survives_restart_without_new_crossover) ... ok
+test_api_failure_does_not_create_fill (test_workflows.WorkflowTests.test_api_failure_does_not_create_fill) ... ok
+test_changed_point_value_stops_before_any_signal (test_workflows.WorkflowTests.test_changed_point_value_stops_before_any_signal) ... ok
+test_cli_replay_restart_idempotence (test_workflows.WorkflowTests.test_cli_replay_restart_idempotence) ... ok
+test_legacy_database_preserved_and_price_conflict_detected (test_workflows.WorkflowTests.test_legacy_database_preserved_and_price_conflict_detected) ... FAIL
+test_lock_blocks_second_runner (test_workflows.WorkflowTests.test_lock_blocks_second_runner) ... ok
+test_missing_calendar_bar_stops_before_replay (test_workflows.WorkflowTests.test_missing_calendar_bar_stops_before_replay) ... ok
+test_paper_next_observation_after_knowledge_and_stale_rejected (test_workflows.WorkflowTests.test_paper_next_observation_after_knowledge_and_stale_rejected) ... ok
+test_quotes_cannot_run_past_a_missing_completed_daily_bar (test_workflows.WorkflowTests.test_quotes_cannot_run_past_a_missing_completed_daily_bar) ... ok
+test_utc_offsets_and_invalid_numbers (test_workflows.WorkflowTests.test_utc_offsets_and_invalid_numbers) ... ok
+
+======================================================================
+FAIL: test_config_identity_and_corrupt_state_fail_closed (test_engine.EngineTests.test_config_identity_and_corrupt_state_fail_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpee1l1rft/paper.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmpee1l1rft/paper.db'
+
+- ['/tmp/tmpee1l1rft/paper.db']
++ [] : SQLite connections left open: ['/tmp/tmpee1l1rft/paper.db']
+
+======================================================================
+FAIL: test_reversal_transaction_rolls_back_both_legs_on_storage_error (test_engine.EngineTests.test_reversal_transaction_rolls_back_both_legs_on_storage_error)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmp1iu_pt1q/paper.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmp1iu_pt1q/paper.db'
+
+- ['/tmp/tmp1iu_pt1q/paper.db']
++ [] : SQLite connections left open: ['/tmp/tmp1iu_pt1q/paper.db']
+
+======================================================================
+FAIL: test_persistent_idempotence_and_flip (test_paper.PaperTests.test_persistent_idempotence_and_flip)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmp67c6zfqj/paper.db', '/tmp/tmp67c[98 chars].db'] != []
+
+First list contains 5 additional elements.
+First extra element 0:
+'/tmp/tmp67c6zfqj/paper.db'
+
++ []
+- ['/tmp/tmp67c6zfqj/paper.db',
+-  '/tmp/tmp67c6zfqj/paper.db',
+-  '/tmp/tmp67c6zfqj/paper.db',
+-  '/tmp/tmp67c6zfqj/paper.db',
+-  '/tmp/tmp67c6zfqj/paper.db'] : SQLite connections left open: ['/tmp/tmp67c6zfqj/paper.db', '/tmp/tmp67c6zfqj/paper.db', '/tmp/tmp67c6zfqj/paper.db', '/tmp/tmp67c6zfqj/paper.db', '/tmp/tmp67c6zfqj/paper.db']
+
+======================================================================
+FAIL: test_reject_conflicting_replay (test_paper.PaperTests.test_reject_conflicting_replay)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmp2y4bedcc/paper.db', '/tmp/tmp2y4bedcc/paper.db'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'/tmp/tmp2y4bedcc/paper.db'
+
+- ['/tmp/tmp2y4bedcc/paper.db', '/tmp/tmp2y4bedcc/paper.db']
++ [] : SQLite connections left open: ['/tmp/tmp2y4bedcc/paper.db', '/tmp/tmp2y4bedcc/paper.db']
+
+======================================================================
+FAIL: test_fill_exactly_at_cutoff_is_after_funding_snapshot (test_technical_audit.FinancingChronologyAudit.test_fill_exactly_at_cutoff_is_after_funding_snapshot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpo12pxgtc/audit.db', '/tmp/tmpo12pxgtc/audit.db'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'/tmp/tmpo12pxgtc/audit.db'
+
+- ['/tmp/tmpo12pxgtc/audit.db', '/tmp/tmpo12pxgtc/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmpo12pxgtc/audit.db', '/tmp/tmpo12pxgtc/audit.db']
+
+======================================================================
+FAIL: test_flat_day_rate_still_matches_fixed_scenario_on_recovery (test_technical_audit.FinancingChronologyAudit.test_flat_day_rate_still_matches_fixed_scenario_on_recovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmp0hkg6eqi/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmp0hkg6eqi/audit.db'
+
+- ['/tmp/tmp0hkg6eqi/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmp0hkg6eqi/audit.db']
+
+======================================================================
+FAIL: test_late_quote_cannot_rewrite_already_settled_position (test_technical_audit.FinancingChronologyAudit.test_late_quote_cannot_rewrite_already_settled_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpyp0gt23v/audit.db', '/tmp/tmpyp0gt23v/audit.db'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'/tmp/tmpyp0gt23v/audit.db'
+
+- ['/tmp/tmpyp0gt23v/audit.db', '/tmp/tmpyp0gt23v/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmpyp0gt23v/audit.db', '/tmp/tmpyp0gt23v/audit.db']
+
+======================================================================
+FAIL: test_long_short_flip_then_funding_uses_short (test_technical_audit.FinancingChronologyAudit.test_long_short_flip_then_funding_uses_short)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmp6fq9rkgh/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmp6fq9rkgh/audit.db'
+
+- ['/tmp/tmp6fq9rkgh/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmp6fq9rkgh/audit.db']
+
+======================================================================
+FAIL: test_recovery_rejects_missing_zero_cash_funding_day (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_missing_zero_cash_funding_day)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpb26yjguk/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmpb26yjguk/audit.db'
+
+- ['/tmp/tmpb26yjguk/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmpb26yjguk/audit.db']
+
+======================================================================
+FAIL: test_recovery_rejects_self_consistent_wrong_funding_position (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_self_consistent_wrong_funding_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpgxpgyrf7/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmpgxpgyrf7/audit.db'
+
+- ['/tmp/tmpgxpgyrf7/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmpgxpgyrf7/audit.db']
+
+======================================================================
+FAIL: test_recovery_rejects_shifted_settlement_time (test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_shifted_settlement_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmphi4golem/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmphi4golem/audit.db'
+
+- ['/tmp/tmphi4golem/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmphi4golem/audit.db']
+
+======================================================================
+FAIL: test_short_long_flip_then_funding_uses_long (test_technical_audit.FinancingChronologyAudit.test_short_long_flip_then_funding_uses_long)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpo0enrxzd/audit.db'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'/tmp/tmpo0enrxzd/audit.db'
+
+- ['/tmp/tmpo0enrxzd/audit.db']
++ [] : SQLite connections left open: ['/tmp/tmpo0enrxzd/audit.db']
+
+======================================================================
+FAIL: test_legacy_database_preserved_and_price_conflict_detected (test_workflows.WorkflowTests.test_legacy_database_preserved_and_price_conflict_detected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/helpers.py", line 47, in tearDown
+    self.assertEqual(leaked, [], 'SQLite connections left open: ' + repr(leaked))
+AssertionError: Lists differ: ['/tmp/tmpd8nrf0hk/legacy.db', '/tmp/tmpd8nrf0hk/legacy.db'] != []
+
+First list contains 2 additional elements.
+First extra element 0:
+'/tmp/tmpd8nrf0hk/legacy.db'
+
+- ['/tmp/tmpd8nrf0hk/legacy.db', '/tmp/tmpd8nrf0hk/legacy.db']
++ [] : SQLite connections left open: ['/tmp/tmpd8nrf0hk/legacy.db', '/tmp/tmpd8nrf0hk/legacy.db']
+
+----------------------------------------------------------------------
+Ran 62 tests in 0.377s
+
+FAILED (failures=13)

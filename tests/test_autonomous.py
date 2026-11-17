@@ -16,7 +16,7 @@ from src.gldrubf_bot.models import DataError, MOSCOW, UTC, instant, iso
 from src.gldrubf_bot.research import replay_history
 from tests.helpers import SQLiteResourceTestCase, costs, UP, DOWN
 from tests.history_helpers import INST, START, NOW, candles, client_for, snapshot, evidence_file
-from tests.test_api import FakeResponse
+from tests.test_api import FakeResponse, detail
 from tempfile import TemporaryDirectory
 
 
@@ -185,7 +185,8 @@ class AutonomousTests(SQLiteResourceTestCase):
                     payload=json.loads(request.data);requests.append(payload)
                     return FakeResponse(json.dumps({'exchanges':[dict(exchange=INST.exchange,days=[dict(
                         date='2026-02-23T00:00:00Z',isTradingDay=True,
-                        startTime='2026-02-22T21:00:00Z',endTime='2026-02-23T01:00:00Z')])]}).encode())
+                        startTime='2026-02-22T21:00:00Z',endTime='2026-02-23T01:00:00Z',intervals=[detail(
+                            'regular_trading_session','2026-02-22T21:00:00Z','2026-02-23T01:00:00Z')])])]}).encode())
                 return original(request,timeout)
             client.transport=transport
             return client

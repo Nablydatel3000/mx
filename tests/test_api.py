@@ -28,9 +28,12 @@ class FakeResponse(io.BytesIO):
 
 
 def q(n):return {'units': str(n), 'nano': 0}
+def detail(kind, start, end):
+    return dict(type=kind,interval=dict(startTs=start,endTs=end))
 def day(d='2026-01-02', trading=True):
     if not trading:return {'date': d+'T00:00:00Z', 'isTradingDay': False}
-    return dict(date=d+'T00:00:00Z', isTradingDay=True, startTime=d+'T07:00:00Z', endTime=d+'T18:00:00Z')
+    return dict(date=d+'T00:00:00Z', isTradingDay=True, startTime=d+'T07:00:00Z', endTime=d+'T18:00:00Z',
+                intervals=[detail('regular_trading_session',d+'T07:00:00Z',d+'T18:00:00Z')])
 def candle(d='2026-01-02', complete=True):
     return dict(time=d+'T00:00:00Z', open=q(100), high=q(101), low=q(99), close=q(100), volume='10', isComplete=complete)
 
@@ -107,6 +110,7 @@ class APITests(unittest.TestCase):
         raw = day()
         raw.update(clearingStartTime='2026-01-02T12:00:00Z', clearingEndTime='2026-01-02T12:10:00Z',
                    eveningStartTime='2026-01-02T19:00:00Z',eveningEndTime='2026-01-02T21:00:00Z')
+        raw['intervals'].append(detail('regular_trading_session_evening',raw['eveningStartTime'],raw['eveningEndTime']))
         s = parse_day(raw)
         self.assertFalse(s.contains(datetime(2026,1,2,12,5,tzinfo=UTC)))
         self.assertTrue(s.contains(datetime(2026,1,2,20,tzinfo=UTC)))
@@ -152,6 +156,8 @@ class APIContractTests(unittest.TestCase):
         raw=day();raw['intervals']=[{'type':'unverified','interval':{'startTs':'2026-01-02T08:00:00Z','endTs':'2026-01-02T09:00:00Z'}}]
         with self.assertRaises(DataError):parse_day(raw)
         raw['intervals'][0]['interval']={'startTs':raw['startTime'],'endTs':raw['endTime']}
+        with self.assertRaises(DataError):parse_day(raw)
+        raw['intervals'][0]['type']='regular_trading_session'
         self.assertTrue(parse_day(raw).trading)
 
     def test_bad_json_is_sanitized(self):

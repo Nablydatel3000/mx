@@ -205,6 +205,8 @@ class CalendarBoundaryAudit(unittest.TestCase):
         raw.update(startTime='2026-01-02T10:00:00+03:00',endTime='2026-01-02T18:00:00+03:00',
                    eveningStartTime='2026-01-02T19:00:00+03:00',eveningEndTime='2026-01-02T23:00:00+03:00',
                    clearingStartTime='2026-01-02T14:00:00+03:00',clearingEndTime='2026-01-02T14:10:00+03:00')
+        raw['intervals']=[dict(type='regular_trading_session',interval=dict(startTs=raw[a],endTs=raw[b]))
+                          for a,b in [('startTime','endTime'),('eveningStartTime','eveningEndTime')]]
         s=parse_day(raw)
         self.assertEqual(s.close.hour,20)
         self.assertFalse(s.contains(datetime(2026,1,2,11,5,tzinfo=UTC)))
@@ -215,6 +217,7 @@ class CalendarBoundaryAudit(unittest.TestCase):
     def test_daily_utc_label_is_not_replaced_by_moscow_date(self):
         raw = day()
         raw.update(startTime='2026-01-02T21:00:00Z', endTime='2026-01-02T23:00:00Z')
+        raw['intervals']=[dict(type='regular_trading_session',interval=dict(startTs=raw['startTime'],endTs=raw['endTime']))]
         bar = candle();bar['time']='2026-01-02T22:00:00Z'  # Jan 3 in Moscow, Jan 2 provider label
         c = self.client(lambda method,p: {'exchanges':[{'exchange':'MOEX_FUT','days':[raw,day('2026-01-03',False)]}]}
                         if method.endswith('TradingSchedules') else {'candles':[bar]})
@@ -224,8 +227,10 @@ class CalendarBoundaryAudit(unittest.TestCase):
     def test_ambiguous_overnight_daily_mapping_is_not_guessed(self):
         earlier=day('2026-01-02')
         earlier.update(startTime='2026-01-02T23:00:00Z',endTime='2026-01-03T02:00:00Z')
+        earlier['intervals']=[dict(type='regular_trading_session',interval=dict(startTs=earlier['startTime'],endTs=earlier['endTime']))]
         later=day('2026-01-03')
         later.update(startTime='2026-01-03T03:00:00Z',endTime='2026-01-03T08:00:00Z')
+        later['intervals']=[dict(type='regular_trading_session',interval=dict(startTs=later['startTime'],endTs=later['endTime']))]
         bar=candle('2026-01-03');bar['time']='2026-01-03T00:30:00Z'
         previous=candle('2026-01-02');previous['time']='2026-01-02T23:00:00Z'
         c=self.client(lambda method,p: {'exchanges':[{'exchange':'MOEX_FUT','days':[earlier,later]}]}

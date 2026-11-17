@@ -91,8 +91,10 @@ class CurrentSessionsTests(unittest.TestCase):
                    eveningStartTime='2026-11-17T19:00:00Z',eveningEndTime='2026-11-17T21:00:00Z',
                    openingAuctionStartTime='2026-11-17T07:00:00Z',openingAuctionEndTime='2026-11-17T07:05:00Z',
                    closingAuctionStartTime='2026-11-17T17:50:00Z',closingAuctionEndTime='2026-11-17T18:00:00Z',
-                   intervals=[dict(type='fixture',interval=dict(startTs='2026-11-17T07:00:00Z',
-                                                               endTs='2026-11-17T18:00:00Z'))])
+                   intervals=[dict(type='regular_trading_session',interval=dict(startTs='2026-11-17T07:00:00Z',
+                                                               endTs='2026-11-17T18:00:00Z')),
+                              dict(type='regular_trading_session_evening',interval=dict(startTs='2026-11-17T19:00:00Z',
+                                                                                       endTs='2026-11-17T21:00:00Z'))])
         response = {'exchanges':[dict(exchange='FORTS',days=None),
                                 dict(exchange='FORTS_FUTURES_WEEKEND',days=[raw])]}
         session = next(iter(self.client(response).current_sessions('forts_futures_weekend',NOW).values()))

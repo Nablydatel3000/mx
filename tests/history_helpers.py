@@ -8,7 +8,7 @@ from src.gldrubf_bot.api import Instrument
 from src.gldrubf_bot.history import download_daily, digest, load_snapshot
 from src.gldrubf_bot.models import UTC, iso
 from tests.helpers import UP
-from tests.test_api import FakeResponse, make_client, q
+from tests.test_api import FakeResponse, make_client, q, detail
 
 
 START = datetime(2026, 1, 1, tzinfo=UTC)
@@ -31,7 +31,8 @@ def client_for(rows, *, quote_time=NOW, trading=True):
         elif method.endswith('/TradingSchedules'):
             label = payload['from'][:10]
             result = {'exchanges': [dict(exchange=INST.exchange, days=[dict(date=label+'T00:00:00Z',
-                isTradingDay=True, startTime=label+'T08:00:00Z', endTime=label+'T18:00:00Z')])]}
+                isTradingDay=True, startTime=label+'T08:00:00Z', endTime=label+'T18:00:00Z',
+                intervals=[detail('regular_trading_session',label+'T08:00:00Z',label+'T18:00:00Z')])])]}
         elif method.endswith('/GetFuturesMargin'):
             result = dict(minPriceIncrement=q(1), minPriceIncrementAmount=q(2))
         elif method.endswith('/GetTradingStatus'):

@@ -1,0 +1,35 @@
+Date: 2026-11-17
+Branch: gldrubf-v1-paper-api / existing PR #1
+Baseline: 42202badd1a90b91bd4fe822bff9872bcbabe327
+Input: user prose describing nine records on 17/18/19 November; original JSON NOT AVAILABLE
+Real API / Windows PAPER / LIVE / deployment / merge: NOT EXECUTED
+Tests reconstruct described times; flags/legacy fixture fields are explicitly synthetic.
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 200 tests in 1.103s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+EXIT: 0
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.cli --help
+EXIT: 0
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 200 tests in 1.019s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -m compileall -q src tests
+EXIT: 0
+COMMAND: /usr/bin/python3.13 -m src.gldrubf_bot.cli --help
+EXIT: 0
+ALL production Python modules except api.py unchanged byte-for-byte: PASS
+All existing API functions except parse_day/local pair unchanged: PASS
+TradingDay.contains remains a <= time < b: PASS
+git diff --check: PASS

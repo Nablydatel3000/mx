@@ -2,6 +2,7 @@
 import json
 import http.client
 import os
+import re
 import socket
 import ssl
 import time
@@ -233,45 +234,95 @@ def parse_day(raw):
     if not raw.get('isTradingDay', False):
         return TradingDay(day, False, (), None)
 
+    def stamp(value):
+        # datetime cannot represent nonzero sub-microsecond boundaries safely.
+        precision = re.search(r'\.\d{6}(\d+)(?:Z|[+-]\d\d:\d\d)$',value) if isinstance(value,str) else None
+        if precision and any(c!='0' for c in precision.group(1)):
+            raise DataError('Calendar precision exceeds supported microseconds')
+        return instant(value)
+
     def pair(start, end):
         if bool(raw.get(start)) != bool(raw.get(end)):
             raise DataError('Incomplete calendar interval: ' + start + '/' + end)
         if not raw.get(start):
             return None
-        a, b = instant(raw[start]), instant(raw[end])
+        a, b = stamp(raw[start]), stamp(raw[end])
         if a >= b:
             raise DataError('Invalid calendar interval: ' + start + '/' + end)
         return a, b
 
-    windows = []
+    envelopes = []
     for start, end in [('startTime', 'endTime'), ('eveningStartTime', 'eveningEndTime'),
                        ('premarketStartTime', 'premarketEndTime')]:
         span = pair(start, end)
         if span:
-            windows.append(span)
-    if not windows:
-        raise DataError('Trading day without supported session windows')
-    known_spans = set(windows)
+            envelopes.append(span)
+    if not envelopes:
+        raise DataError('Trading day without legacy envelope for detailed-session validation')
     # Official completion must NOT be shortened by removing a trailing clearing/auction.
-    ends = [b for _, b in windows]
+    ends = [b for _, b in envelopes]
     exclusions = []
+    legacy_auctions, legacy_clearing = [], []
     for start, end in [('clearingStartTime', 'clearingEndTime'),
                        ('openingAuctionStartTime', 'openingAuctionEndTime'),
                        ('closingAuctionStartTime', 'closingAuctionEndTime')]:
         span = pair(start, end)
         if span:
-            known_spans.add(span)
             exclusions.append(span)
             if start != 'clearingStartTime':
                 ends.append(span[1])
+                legacy_auctions.append(span)
+            else:
+                legacy_clearing.append(span)
     if raw.get('eveningOpeningAuctionStartTime'):
         if not raw.get('eveningStartTime'):
             raise DataError('Evening auction lacks a supported regular-session start')
-        a, b = instant(raw['eveningOpeningAuctionStartTime']), instant(raw['eveningStartTime'])
+        a, b = stamp(raw['eveningOpeningAuctionStartTime']), stamp(raw['eveningStartTime'])
         if a >= b:
             raise DataError('Evening auction cannot be separated from regular session')
-        known_spans.add((a, b))
         exclusions.append((a, b))
+        legacy_auctions.append((a,b))
+
+    # Exact names observed by the user for GLDRUBF. Not an official closed enum;
+    # no substring classification or legacy-only permission for unknown phases.
+    regular = {'regular_trading_session','regular_trading_session_morning',
+               'regular_trading_session_main','regular_trading_session_evening'}
+    auctions = {'opening_auction','opening_auction_morning'}
+    details = raw.get('intervals')
+    if not isinstance(details,list) or not details:
+        raise DataError('Detailed trading intervals required; legacy envelope is not execution permission')
+    phases, names = {}, {}
+    for item in details:
+        if not isinstance(item,dict) or not isinstance(item.get('interval'),dict):
+            raise DataError('Invalid detailed trading interval')
+        kind = item.get('type')
+        if not isinstance(kind,str) or kind not in regular|auctions|{'clearing'}:
+            raise DataError('Unknown detailed trading phase; execution blocked')
+        interval = item['interval']
+        if not interval.get('startTs') or not interval.get('endTs'):
+            raise DataError('Incomplete detailed trading interval')
+        a,b = stamp(interval['startTs']),stamp(interval['endTs'])
+        if a>=b:
+            raise DataError('Invalid detailed trading interval bounds')
+        family = 'regular' if kind in regular else 'auction' if kind in auctions else 'clearing'
+        checks = envelopes if family=='regular' else legacy_auctions if family=='auction' else legacy_clearing
+        if checks and not any(x<=a and b<=y for x,y in checks):
+            raise DataError('Detailed phase contradicts legacy bounds')
+        if kind=='regular_trading_session_evening' and raw.get('eveningStartTime'):
+            if not (stamp(raw['eveningStartTime'])<=a and b<=stamp(raw['eveningEndTime'])):
+                raise DataError('Detailed evening phase contradicts legacy evening bounds')
+        if (a,b) in phases and phases[(a,b)]!=family:
+            raise DataError('Same detailed interval assigned contradictory phases')
+        phases[(a,b)] = family  # Exact duplicates/aliases become one interval.
+        names.setdefault((a,b),set()).add(kind)
+        if len(names[(a,b)] & (regular-{'regular_trading_session'}))>1:
+            raise DataError('Same detailed interval assigned different regular sessions')
+    ordered = sorted(phases)
+    if any(right[0]<left[1] for left,right in zip(ordered,ordered[1:])):
+        raise DataError('Overlapping non-identical detailed phases; execution blocked')
+    windows = [span for span in ordered if phases[span]=='regular']
+    exclusions.extend(span for span in ordered if phases[span]!='regular')
+    # Legacy exclusions can only remove permission, never add/bridge a phase.
     for a, b in exclusions:
         split = []
         for x, y in windows:
@@ -285,13 +336,7 @@ def parse_day(raw):
         windows = split
     if not windows:
         raise DataError('No supported continuous trading window remains')
-    # Free-text type is not classified by guesswork. Only exact mirrors of known
-    # legacy spans are supported; an extra break/session must be reviewed explicitly.
-    for item in raw.get('intervals', []):
-        interval = item['interval']
-        span = (instant(interval['startTs']), instant(interval['endTs']))
-        if span not in known_spans:
-            raise DataError('Unrecognized detailed trading interval; calendar mapping needs review')
+    # Preserve [start,end): do not round xx:59:59 up to the next second/minute.
     return TradingDay(day, True, tuple(sorted(windows)), max(ends))
 
 

@@ -1,5 +1,10 @@
 # Комплексная диагностика TradingSchedules GLDRUBF
 
+> Этот отчёт описывает изолированный диагностический этап. После получения
+> текстового описания фаз добавлена новая обработка parse_day:
+> [правила и ограничения](GLDRUBF_DETAILED_PHASES_RU.md).
+> Сборщик снимка по-прежнему не вызывает парсер и не разрешает PAPER.
+
 17.11.2026, ветка gldrubf-v1-paper-api, PR #1. База: 7792cec8d74fb8f3b4bf0ae532ae0775222655ed.
 
 Последний реальный Windows STOP: `Unrecognized detailed trading interval;

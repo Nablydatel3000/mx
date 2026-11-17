@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-12",
+  "official_repository": "RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": {
+    "src/docs/contracts/marketdata.proto": {
+      "sha256": "6e7aed90bf5a7d53b857d128c845522ceda80daa5026f1984e5ae9328bd899dd",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/marketdata.proto"
+    },
+    "src/docs/contracts/instruments.proto": {
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto"
+    },
+    "src/docs/head-instruments.md": {
+      "sha256": "9ddc527f4d8b7de48523013789e164290a9c5cf6055ac89bdac7a53620cd1e3d",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-instruments.md"
+    },
+    "src/docs/limits.md": {
+      "sha256": "0e8bef18f31f48bd89894f9e92a74034fb48c41404e0a1f608a9e62990e65190",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/limits.md"
+    }
+  },
+  "real_api_executed": false,
+  "user_csv_recounted": false,
+  "user_reported": {
+    "complete_daily_candles": 608,
+    "from_date": "2024-11-05",
+    "last_date": "2026-11-04",
+    "status": "valid_with_limits",
+    "duplicate_raw_records": 6,
+    "coverage_verified": false,
+    "utc_weekend_labels_present": true
+  },
+  "strategy_baseline": "fd1e1ce58c45ba78a18445c13434bf0560e4633f",
+  "mode": "autonomous-forward-v1"
+}

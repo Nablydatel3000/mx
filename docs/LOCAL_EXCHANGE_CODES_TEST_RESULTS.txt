@@ -1,0 +1,30 @@
+Date: 2026-11-17
+Branch: gldrubf-v1-paper-api
+Real API / Windows: NOT EXECUTED
+Synthetic console/HTTP only. No real token, account access, PAPER or broker orders.
+Official investAPI HEAD: 3eaf23a25f598fe483c913184acdbd9132bc68d2
+Four official source SHA256 values rechecked against CURRENT_SESSIONS_SPEC_REFERENCE.json: MATCH
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 174 tests in 1.078s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+EXIT: 0
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 174 tests in 0.996s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -m compileall -q src tests
+EXIT: 0
+ALL existing src/gldrubf_bot/*.py unchanged from baseline: PASS (including API/strategy/engine/SQLite/runner)
+New Windows launcher CRLF: PASS; not cmd.exe execution
+git diff --check: PASS

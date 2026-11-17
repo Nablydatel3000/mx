@@ -1,0 +1,43 @@
+Date: 2026-11-17
+Branch: gldrubf-v1-paper-api / PR #1
+Baseline: 08dcf71078fcb2083e73cf82f86131a6b2cd1235
+Actual exchange identifiers: supplied by user; authenticated API/Windows run NOT PERFORMED
+Session/day fixtures are synthetic. No broker token, real orders, deployment or merge.
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 180 tests in 1.009s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+EXIT: 0
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.cli --help
+EXIT: 0
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 180 tests in 1.090s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -m compileall -q src tests
+EXIT: 0
+COMMAND: /usr/bin/python3.13 -m src.gldrubf_bot.cli --help
+EXIT: 0
+strategy.py unchanged from baseline: PASS
+engine.py unchanged from baseline: PASS
+models.py unchanged from baseline: PASS
+autonomous.py unchanged from baseline: PASS
+history.py unchanged from baseline: PASS
+cli.py unchanged from baseline: PASS
+research.py unchanged from baseline: PASS
+windows.py unchanged from baseline: PASS
+api.py parse_day unchanged from baseline: PASS
+api.py instrument unchanged from baseline: PASS
+api.py quote unchanged from baseline: PASS
+api.py current_schedule_request unchanged from baseline: PASS
+git diff --check: PASS

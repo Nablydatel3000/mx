@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-11",
+  "primary_urls": {
+    "https://developer.tbank.ru/invest/intro/intro/": "unavailable_from_this_environment_URLError",
+    "https://developer.tbank.ru/invest/intro/developer/protocols/": "unavailable_from_this_environment_URLError",
+    "https://developer.tbank.ru/invest/intro/intro/token": "unavailable_from_this_environment_URLError",
+    "https://developer.tbank.ru/invest/intro/developer/sandbox": "unavailable_from_this_environment_URLError"
+  },
+  "official_repository": "RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "openapi_version": "1.43",
+  "sources": {
+    "README.md": {
+      "sha256": "bb4143db121770eec29b61a90254d61c276467732cfedae35f83a428f2cd4ea9",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/README.md"
+    },
+    "src/docs/grpc.md": {
+      "sha256": "da337fac39e271f60abdfdbc85aabebd81cd1c8d1ed52150d926667f6cdf931c",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/grpc.md"
+    },
+    "src/docs/swagger-ui/openapi.yaml": {
+      "sha256": "600bfc6555c1b39d546eb2792c960dc1e73c97d13d069bf6a6acc9a1be49eeb9",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/swagger-ui/openapi.yaml"
+    },
+    "src/docs/contracts/marketdata.proto": {
+      "sha256": "6e7aed90bf5a7d53b857d128c845522ceda80daa5026f1984e5ae9328bd899dd",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/marketdata.proto"
+    },
+    "src/docs/contracts/instruments.proto": {
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto"
+    },
+    "src/docs/head-instruments.md": {
+      "sha256": "9ddc527f4d8b7de48523013789e164290a9c5cf6055ac89bdac7a53620cd1e3d",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-instruments.md"
+    },
+    "src/docs/token.md": {
+      "sha256": "0d9cf61a437a1454a5685d32a301442ca283add700393ff832bb3c8c4ce5adda",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/token.md"
+    },
+    "src/docs/head-sandbox.md": {
+      "sha256": "7d4b16ffdd035b59791d16aa8c5ac3800bd40ae88bc270c28a35f3afe6252454",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-sandbox.md"
+    },
+    "src/docs/limits.md": {
+      "sha256": "0e8bef18f31f48bd89894f9e92a74034fb48c41404e0a1f608a9e62990e65190",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/limits.md"
+    }
+  },
+  "authenticated_api_executed": false,
+  "windows_executed": false,
+  "strategy.py_sha256_unchanged": "87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313",
+  "engine.py_sha256_unchanged": "680e62bdc794c598d850f32d7bc741a2b178cf3537551679907c42f829995aa3"
+}

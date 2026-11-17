@@ -1,0 +1,145 @@
+Reproduced on unmodified source dd55ed780ce598667dbf4106a45eebe658d3af55 from git archive, with ONLY the new test module copied in. Synthetic boundary fixtures, NOT real API/MOEX.
+test_ambiguous_overnight_daily_mapping_is_not_guessed (tests.test_technical_audit.CalendarBoundaryAudit.test_ambiguous_overnight_daily_mapping_is_not_guessed) ... FAIL
+test_auction_not_a_continuous_market_fill_window (tests.test_technical_audit.CalendarBoundaryAudit.test_auction_not_a_continuous_market_fill_window) ... FAIL
+test_daily_utc_label_is_not_replaced_by_moscow_date (tests.test_technical_audit.CalendarBoundaryAudit.test_daily_utc_label_is_not_replaced_by_moscow_date) ... ok
+test_day_not_complete_before_original_end_even_if_api_flag_true (tests.test_technical_audit.CalendarBoundaryAudit.test_day_not_complete_before_original_end_even_if_api_flag_true) ... FAIL
+test_main_evening_clearing_and_timezone_offsets (tests.test_technical_audit.CalendarBoundaryAudit.test_main_evening_clearing_and_timezone_offsets) ... ok
+test_missing_auction_boundary_fails_closed (tests.test_technical_audit.CalendarBoundaryAudit.test_missing_auction_boundary_fails_closed) ... FAIL
+test_special_saturday_and_holiday_are_calendar_not_weekday_rules (tests.test_technical_audit.CalendarBoundaryAudit.test_special_saturday_and_holiday_are_calendar_not_weekday_rules) ... ok
+test_trailing_clearing_does_not_shorten_official_day (tests.test_technical_audit.CalendarBoundaryAudit.test_trailing_clearing_does_not_shorten_official_day) ... FAIL
+test_calendar_completion_revision_rejected_atomically (tests.test_technical_audit.FinancingChronologyAudit.test_calendar_completion_revision_rejected_atomically) ... ok
+test_disappeared_cached_day_cannot_silently_remain_in_sma (tests.test_technical_audit.FinancingChronologyAudit.test_disappeared_cached_day_cannot_silently_remain_in_sma) ... FAIL
+test_fill_exactly_at_cutoff_is_after_funding_snapshot (tests.test_technical_audit.FinancingChronologyAudit.test_fill_exactly_at_cutoff_is_after_funding_snapshot) ... ok
+test_flat_day_rate_still_matches_fixed_scenario_on_recovery (tests.test_technical_audit.FinancingChronologyAudit.test_flat_day_rate_still_matches_fixed_scenario_on_recovery) ... FAIL
+test_late_quote_cannot_rewrite_already_settled_position (tests.test_technical_audit.FinancingChronologyAudit.test_late_quote_cannot_rewrite_already_settled_position) ... FAIL
+test_long_short_flip_then_funding_uses_short (tests.test_technical_audit.FinancingChronologyAudit.test_long_short_flip_then_funding_uses_short) ... ok
+test_multiday_recovery_charges_held_position_not_new_pending (tests.test_technical_audit.FinancingChronologyAudit.test_multiday_recovery_charges_held_position_not_new_pending) ... ok
+test_recovery_rejects_missing_zero_cash_funding_day (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_missing_zero_cash_funding_day) ... FAIL
+test_recovery_rejects_self_consistent_wrong_funding_position (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_self_consistent_wrong_funding_position) ... FAIL
+test_recovery_rejects_shifted_settlement_time (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_shifted_settlement_time) ... FAIL
+test_short_long_flip_then_funding_uses_long (tests.test_technical_audit.FinancingChronologyAudit.test_short_long_flip_then_funding_uses_long) ... ok
+test_watermark_survives_restart_without_new_crossover (tests.test_technical_audit.FinancingChronologyAudit.test_watermark_survives_restart_without_new_crossover) ... FAIL
+
+======================================================================
+FAIL: test_ambiguous_overnight_daily_mapping_is_not_guessed (tests.test_technical_audit.CalendarBoundaryAudit.test_ambiguous_overnight_daily_mapping_is_not_guessed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 231, in test_ambiguous_overnight_daily_mapping_is_not_guessed
+    with self.assertRaisesRegex(DataError,'overnight mapping'):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_auction_not_a_continuous_market_fill_window (tests.test_technical_audit.CalendarBoundaryAudit.test_auction_not_a_continuous_market_fill_window)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 179, in test_auction_not_a_continuous_market_fill_window
+    self.assertFalse(result.contains(datetime(2026,1,2,17,55,tzinfo=UTC)))
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_day_not_complete_before_original_end_even_if_api_flag_true (tests.test_technical_audit.CalendarBoundaryAudit.test_day_not_complete_before_original_end_even_if_api_flag_true)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 193, in test_day_not_complete_before_original_end_even_if_api_flag_true
+    self.assertEqual(got, [])
+AssertionError: Lists differ: [Bar(day=datetime.date(2026, 1, 2), time=d[248 chars]rue)] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+Bar(day=datetime.date(2026, 1, 2), time=datetime.datetime(2026, 1, 2, 0, 0, tzinfo=datetime.timezone.utc), closed_at=datetime.datetime(2026, 1, 2, 17, 0, tzinfo=datetime.timezone.utc), open=Decimal('100'), high=Decimal('101'), low=Decimal('99'), close=Decimal('100'), volume=10, complete=True)
+
++ []
+- [Bar(day=datetime.date(2026, 1, 2),
+-      time=datetime.datetime(2026, 1, 2, 0, 0, tzinfo=datetime.timezone.utc),
+-      closed_at=datetime.datetime(2026, 1, 2, 17, 0, tzinfo=datetime.timezone.utc),
+-      open=Decimal('100'),
+-      high=Decimal('101'),
+-      low=Decimal('99'),
+-      close=Decimal('100'),
+-      volume=10,
+-      complete=True)]
+
+======================================================================
+FAIL: test_missing_auction_boundary_fails_closed (tests.test_technical_audit.CalendarBoundaryAudit.test_missing_auction_boundary_fails_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 185, in test_missing_auction_boundary_fails_closed
+    with self.assertRaises(DataError):parse_day(raw)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_trailing_clearing_does_not_shorten_official_day (tests.test_technical_audit.CalendarBoundaryAudit.test_trailing_clearing_does_not_shorten_official_day)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 171, in test_trailing_clearing_does_not_shorten_official_day
+    self.assertEqual(result.close, datetime(2026,1,2,18,tzinfo=UTC))
+AssertionError: datetime.datetime(2026, 1, 2, 17, 0, tzinfo=datetime.timezone.utc) != datetime.datetime(2026, 1, 2, 18, 0, tzinfo=datetime.timezone.utc)
+
+======================================================================
+FAIL: test_disappeared_cached_day_cannot_silently_remain_in_sma (tests.test_technical_audit.FinancingChronologyAudit.test_disappeared_cached_day_cannot_silently_remain_in_sma)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 141, in test_disappeared_cached_day_cannot_silently_remain_in_sma
+    with self.assertRaises(DataError):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_flat_day_rate_still_matches_fixed_scenario_on_recovery (tests.test_technical_audit.FinancingChronologyAudit.test_flat_day_rate_still_matches_fixed_scenario_on_recovery)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 152, in test_flat_day_rate_still_matches_fixed_scenario_on_recovery
+    with self.assertRaises(DataError):PaperEngine(self.path,'audit-uid',costs())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_late_quote_cannot_rewrite_already_settled_position (tests.test_technical_audit.FinancingChronologyAudit.test_late_quote_cannot_rewrite_already_settled_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 45, in test_late_quote_cannot_rewrite_already_settled_position
+    self.assertFalse(self.engine.observe(late))
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_recovery_rejects_missing_zero_cash_funding_day (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_missing_zero_cash_funding_day)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 122, in test_recovery_rejects_missing_zero_cash_funding_day
+    with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_recovery_rejects_self_consistent_wrong_funding_position (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_self_consistent_wrong_funding_position)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 116, in test_recovery_rejects_self_consistent_wrong_funding_position
+    with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_recovery_rejects_shifted_settlement_time (tests.test_technical_audit.FinancingChronologyAudit.test_recovery_rejects_shifted_settlement_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 129, in test_recovery_rejects_shifted_settlement_time
+    with self.assertRaises(DataError):PaperEngine(self.path, 'audit-uid', costs())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: DataError not raised
+
+======================================================================
+FAIL: test_watermark_survives_restart_without_new_crossover (tests.test_technical_audit.FinancingChronologyAudit.test_watermark_survives_restart_without_new_crossover)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/tmp1k4fh6nz/tests/test_technical_audit.py", line 58, in test_watermark_survives_restart_without_new_crossover
+    self.assertFalse(restored.observe(Quote(observed-timedelta(seconds=1), D(100))))
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.131s
+
+FAILED (failures=12)
+exit=1

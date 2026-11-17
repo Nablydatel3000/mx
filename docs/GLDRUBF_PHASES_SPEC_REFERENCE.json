@@ -1,0 +1,37 @@
+{
+  "checked_date": "2026-11-17",
+  "official_repository": "RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": [
+    {
+      "path": "src/docs/contracts/instruments.proto",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto",
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3"
+    },
+    {
+      "path": "src/docs/instruments.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/instruments.md",
+      "sha256": "390b16c5b1471784d06ae318365d8aeb87e4261a14f3cf7d2ef510cf775a6aa9"
+    },
+    {
+      "path": "src/docs/contracts/common.proto",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/common.proto",
+      "sha256": "2eb887eb9001aa6ece1ed2d61ea7384d342dc88e2fabec37390d338f386d94f9"
+    },
+    {
+      "path": "src/docs/markets.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/markets.md",
+      "sha256": "1e1e2a21c0a57e662a06953cee73b593e5637ead97e92daecbb6a22c52730f7b"
+    },
+    {
+      "path": "src/docs/head-instruments.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-instruments.md",
+      "sha256": "9ddc527f4d8b7de48523013789e164290a9c5cf6055ac89bdac7a53620cd1e3d"
+    }
+  ],
+  "original_schedule_json_available": false,
+  "original_validation_json_available": false,
+  "fixture_source": "User prose observations, 17/18/19 November 2026; not original JSON",
+  "real_api_run": false,
+  "windows_paper_run": false
+}

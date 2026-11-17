@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from math import isfinite
 from typing import Sequence
 
 
@@ -19,19 +20,25 @@ class Signal:
 
 
 def sma(values: Sequence[float], window: int) -> float:
-    if window < 1 or len(values) < window:
+    if type(window) is not int or window < 1 or len(values) < window:
         raise ValueError("Insufficient prices or invalid window")
-    return sum(values[-window:]) / window
+    used = values[-window:]
+    if any(isinstance(p, bool) or not isinstance(p, (int, float)) or not (0 < p < float("inf")) for p in used):
+        raise ValueError("Invalid SMA prices")
+    result = sum(used) / window
+    if not isfinite(result):
+        raise ValueError("SMA overflow")
+    return result
 
 
 def crossover(closes: Sequence[DailyClose], fast: int = 20, slow: int = 50) -> Signal:
     """Signal on completed daily bars only; 0 means no new crossing."""
-    if not (0 < fast < slow):
+    if type(fast) is not int or type(slow) is not int or not (0 < fast < slow):
         raise ValueError("Expected 0 < fast < slow")
     if len(closes) < slow + 1:
         raise ValueError("Need at least slow+1 completed days")
     days = [bar.day for bar in closes]
-    if days != sorted(set(days)):
+    if any(type(d) is not date for d in days) or days != sorted(set(days)):
         raise ValueError("Daily bars must be unique and chronological")
     prices = [bar.close for bar in closes]
     if any(not (0 < p < float("inf")) for p in prices):

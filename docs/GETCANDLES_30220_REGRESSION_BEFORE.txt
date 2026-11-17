@@ -1,0 +1,20 @@
+test_exchange_daily_candles_avoid_limit_conflict (tests.test_getcandles_30220.GetCandles30220Tests.test_exchange_daily_candles_avoid_limit_conflict) ... ERROR
+
+======================================================================
+ERROR: test_exchange_daily_candles_avoid_limit_conflict (tests.test_getcandles_30220.GetCandles30220Tests.test_exchange_daily_candles_avoid_limit_conflict)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/mx/tests/test_getcandles_30220.py", line 33, in test_exchange_daily_candles_avoid_limit_conflict
+    rows = client.candles(UID, START, START+timedelta(days=1))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/mx/src/gldrubf_bot/api.py", line 361, in candles
+    response = self.call('MarketDataService/GetCandles', {'instrumentId': uid, 'from': iso(cursor), 'to': iso(finish), 'interval': interval, 'candleSourceType': 'CANDLE_SOURCE_EXCHANGE', 'limit': 2400})
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/mx/src/gldrubf_bot/api.py", line 301, in call
+    raise error from None
+src.gldrubf_bot.api.APIError: API failure: method=MarketDataService/GetCandles http_status=400 content_type=application/json category=http_error grpc_code=3 api_code=30220
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (errors=1)

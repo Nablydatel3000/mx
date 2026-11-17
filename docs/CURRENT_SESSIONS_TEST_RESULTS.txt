@@ -1,0 +1,40 @@
+Date: 2026-11-17
+Branch: gldrubf-v1-paper-api / existing PR #1
+Platform: Linux; authorized API/Windows execution: NOT PERFORMED
+Synthetic HTTP tests only; no broker credentials or orders
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 169 tests in 1.062s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+EXIT: 0
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.cli --help
+EXIT: 0
+
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 169 tests in 0.991s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -m compileall -q src tests
+EXIT: 0
+COMMAND: /usr/bin/python3.13 -m src.gldrubf_bot.cli --help
+EXIT: 0
+
+strategy.py unchanged from baseline: PASS; SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+engine.py unchanged from baseline: PASS; SHA256=17d9d120a351c90fdef6a350cffc8d2e0174bffe6dfeff6109c722455526949f
+autonomous.py unchanged from baseline: PASS; SHA256=aba5c3d9d62a9b679402c2d1653bb92371070f7ce5f6b59e6e855224fe9d94bc
+cli.py unchanged from baseline: PASS; SHA256=b8e141ca5885ed84c720c1ee1a64d42b1dbb4eb0175b91ed760d275b6d40e823
+history.py unchanged from baseline: PASS; SHA256=3b4599fdf6fa7d1d960fc43d85244b9a3546b1b8fe01719a8e6aca0631e7e2f3
+models.py unchanged from baseline: PASS; SHA256=5fd937b351a117c3d45f6d37c08ca0e824e8d612fce4be29cc40935807af9329
+research.py unchanged from baseline: PASS; SHA256=fcee0866212bff23fd1a83c046cdb87f3629b8f6f71619dd97457c0c6be5cef5
+New Windows launcher CRLF: PASS (not cmd.exe execution)
+git diff --check: PASS

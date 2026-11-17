@@ -1,0 +1,31 @@
+{
+  "checked_date": "2026-11-17",
+  "official_repository": "RussianInvestments/investAPI",
+  "official_head": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": [
+    {
+      "path": "src/docs/contracts/instruments.proto",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto",
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3"
+    },
+    {
+      "path": "src/docs/markets.md",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/markets.md",
+      "sha256": "1e1e2a21c0a57e662a06953cee73b593e5637ead97e92daecbb6a22c52730f7b"
+    },
+    {
+      "path": "src/docs/head-instruments.md",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-instruments.md",
+      "sha256": "9ddc527f4d8b7de48523013789e164290a9c5cf6055ac89bdac7a53620cd1e3d"
+    },
+    {
+      "path": "src/docs/swagger-ui/openapi.yaml",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/swagger-ui/openapi.yaml",
+      "sha256": "600bfc6555c1b39d546eb2792c960dc1e73c97d13d069bf6a6acc9a1be49eeb9"
+    }
+  ],
+  "audit_baseline": "6582ca69e52006b8e5ffaac4dd64ac9f60dfc766",
+  "real_authorized_api_run": false,
+  "windows_run": false,
+  "real_gldrubf_exchange_verified": false
+}

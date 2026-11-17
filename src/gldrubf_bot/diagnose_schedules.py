@@ -1,9 +1,11 @@
 """Read-only TradingSchedules probes; no calendar synthesis or PAPER execution."""
 import json
 import os
+import sys
 from datetime import date, datetime, timedelta, time as daytime
 
-from .api import APIError, ALLOWED, ReadOnlyClient, public_exchange, schedule_request
+from .api import (APIError, ALLOWED, ReadOnlyClient, public_exchange, schedule_request,
+                  current_schedule_request, calendar_response_summary)
 from .api_error_codes import KNOWN_API_CODES
 from .diagnose_api import read_token
 from .models import DataError, UTC, instant, iso
@@ -71,13 +73,45 @@ def run(client, start, end, now):
     return int(not all(outcomes))
 
 
-def main():
+def run_current(client, now):
+    """Compare filtered and unfiltered responses; neither can authorize a trade."""
+    instrument = client.instrument()
+    requested = current_schedule_request(instrument.exchange, now)
+    token = getattr(client, '_token', None)
+    outcomes = []
+    for stage, payload in [('current_filtered', requested),
+                           ('current_unfiltered', {k: v for k, v in requested.items() if k != 'exchange'})]:
+        details = dict(stage=stage, method=METHOD, exchange_source='FutureBy',
+            exchange_filter='present' if 'exchange' in payload else 'omitted',
+            from_utc=payload['from'], to_utc=payload['to'])
+        try:
+            response = client.call(METHOD, payload)
+            summary = calendar_response_summary(response, instrument.exchange, token=token)
+            passed = summary['response_shape_valid'] and summary['exact_matches'] == 1
+            category = ('invalid_calendar_response' if not summary['response_shape_valid'] else
+                        'calendar_exchange_missing' if summary['exact_matches'] == 0 else
+                        'calendar_exchange_ambiguous' if summary['exact_matches'] > 1 else 'calendar_exact_match')
+            details.update(summary, http_status=200, category=category)
+        except APIError as error:
+            details.update(_safe_error(error), requested_exchange=public_exchange(instrument.exchange, token=token))
+            passed = False
+        print(json.dumps(details, sort_keys=True), flush=True)
+        outcomes.append(passed)
+    # Success of unfiltered discovery never silently fixes a failed filtered call.
+    return int(not all(outcomes))
+
+
+def main(argv=()):
     os.environ.pop('SSLKEYLOGFILE', None)
     try:
-        start = datetime.combine(date.fromisoformat(input('First date YYYY-MM-DD: ').strip()), daytime.min, UTC)
-        end = datetime.combine(date.fromisoformat(input('End date YYYY-MM-DD (exclusive): ').strip()), daytime.min, UTC)
-        if start >= end:
-            raise DataError('Invalid range')
+        current = list(argv) == ['--current']
+        if argv and not current:
+            raise DataError('Invalid diagnostic mode')
+        if not current:
+            start = datetime.combine(date.fromisoformat(input('First date YYYY-MM-DD: ').strip()), daytime.min, UTC)
+            end = datetime.combine(date.fromisoformat(input('End date YYYY-MM-DD (exclusive): ').strip()), daytime.min, UTC)
+            if start >= end:
+                raise DataError('Invalid range')
         token = read_token()
         previous = os.environ.get('T_INVEST_TOKEN')
         try:
@@ -88,7 +122,7 @@ def main():
                 os.environ.pop('T_INVEST_TOKEN', None)
             else:
                 os.environ['T_INVEST_TOKEN'] = previous
-        return run(client, start, end, datetime.now(UTC))
+        return run_current(client, datetime.now(UTC)) if current else run(client, start, end, datetime.now(UTC))
     except APIError as error:
         details = _safe_error(error)
         details.update(stage='instrument', method=error.method if error.method in ALLOWED else 'unknown')
@@ -101,4 +135,4 @@ def main():
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

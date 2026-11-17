@@ -81,18 +81,45 @@ def schedule_request(exchange, start, end):
     return {'exchange': exchange, 'from': iso(cursor), 'to': iso(min(cursor + timedelta(days=7), end))}
 
 
-def public_exchange(value):
+def public_exchange(value, *, token=None):
     # Official markets.md values; unknown response text must not be echoed.
     known = {'MOEX', 'MOEX_PLUS', 'MOEX_WEEKEND', 'MOEX_EVENING_WEEKEND',
              'moex_extended', 'FORTS', 'FORTS_EVENING', 'FX', 'FX_MTL', 'otc_ncc',
              'dealer_realestate', 'dealer_int_exchange', 'moex_close', 'LSE_MORNING', 'spb_close'}
-    return value if isinstance(value, str) and value in known else 'other'
+    return value if isinstance(value, str) and value in known and not (
+        isinstance(token, str) and token and token in value) else 'other'
 
 
-def _schedule_error_context(error, payload):
+def current_schedule_request(exchange, now):
+    """The same current UTC window for PAPER and diagnostic controls."""
+    if not isinstance(exchange, str) or not exchange.strip():
+        raise DataError('Invalid current schedule exchange')
+    now = instant(now)
+    start = datetime.combine(now.date(), daytime.min, UTC)
+    return dict(exchange=exchange, **{'from': iso(start), 'to': iso(start + timedelta(days=2))})
+
+
+def calendar_response_summary(result, exchange, *, token=None):
+    """Bounded public codes only; never echo arbitrary response text or secrets.
+
+    Unknown section names are redacted, but matching always uses original values.
+    An omitted repeated exchanges field is the protobuf JSON empty-list case.
+    """
+    records = result.get('exchanges', []) if isinstance(result, dict) else None
+    valid = isinstance(records, list) and all(isinstance(x, dict) and
+        isinstance(x.get('exchange'), str) and bool(x['exchange'].strip()) for x in records)
+    items = records if isinstance(records, list) else []
+    codes = sorted({public_exchange(x.get('exchange'), token=token) if isinstance(x, dict) else 'other'
+                    for x in items})
+    return dict(requested_exchange=public_exchange(exchange, token=token),
+        returned_exchanges=codes, returned_count=len(items), response_shape_valid=valid,
+        exact_matches=sum(isinstance(x, dict) and x.get('exchange') == exchange for x in items))
+
+
+def _schedule_error_context(error, payload, token=None):
     if not isinstance(payload, dict) or error.request_parameters is not None:
         return
-    parameters = {'exchange': public_exchange(payload.get('exchange'))}
+    parameters = {'exchange': public_exchange(payload.get('exchange'), token=token)}
     for key in ('from', 'to'):
         try:
             parameters[key] = iso(payload.get(key))
@@ -328,7 +355,7 @@ class ReadOnlyClient:
                 # Header/request encoding errors must not be mislabeled as JSON errors.
                 error = _failure(method, status, content_type, 'request_encoding_error')
             if method == 'InstrumentsService/TradingSchedules':
-                _schedule_error_context(error, payload)
+                _schedule_error_context(error, payload, self._token)
             elif method == 'MarketDataService/GetCandles':
                 _candles_error_context(error, payload, self._token)
             if not error.retryable or attempt + 1 == self.attempts:
@@ -391,15 +418,22 @@ class ReadOnlyClient:
         date does not authorize execution until its actual window contains now.
         No historical request or inferred session/trading date is used.
         """
-        now = instant(now)
-        start = datetime.combine(now.date(), daytime.min, UTC)
-        result = self.call('InstrumentsService/TradingSchedules', dict(exchange=exchange,
-            **{'from': iso(start), 'to': iso(start + timedelta(days=2))}))
+        payload = current_schedule_request(exchange, now)
+        result = self.call('InstrumentsService/TradingSchedules', payload)
+        details = calendar_response_summary(result, exchange, token=self._token)
+        if not details['response_shape_valid']:
+            raise DataError('Invalid current exchange calendar response; no permission inferred; ' +
+                            json.dumps(details, sort_keys=True))
         matching = [x for x in result.get('exchanges', []) if x.get('exchange') == exchange]
         if len(matching) != 1:
-            raise DataError('Missing/ambiguous current exchange calendar; no permission inferred')
+            details['category'] = 'calendar_exchange_missing' if not matching else 'calendar_exchange_ambiguous'
+            raise DataError('Missing/ambiguous current exchange calendar; no permission inferred; ' +
+                            json.dumps(details, sort_keys=True))
         days = {}
-        for raw in matching[0].get('days', []):
+        raw_days = matching[0].get('days', [])
+        if not isinstance(raw_days, list) or any(not isinstance(x, dict) for x in raw_days):
+            raise DataError('Invalid current calendar days; no permission inferred')
+        for raw in raw_days:
             day = parse_day(raw)
             if day.day in days and days[day.day] != day:
                 raise DataError('Conflicting current session records')

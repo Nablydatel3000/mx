@@ -23,7 +23,7 @@ isComplete=true и рассчитывает прежние пересечени�
 из стандартного Forward; historical replay сохраняет явные временные допущения.
 Windows: setup_windows.cmd → run_paper_windows.cmd; начальный снимок необязателен.
 
-169 offline-тестов прошли на Linux/Python 3.12 и 3.13, включая непрерывный цикл
+174 offline-теста прошли на Linux/Python 3.12 и 3.13, включая непрерывный цикл
 с имитацией API, возобновление SQLite, выходные UTC, незавершённые свечи, пропуски,
 ревизии, устаревшие цены и сохранение позиции при сбоях. Windows CI уже настроен;
 новый реальный запуск Windows/API в этой среде не выполнен. Прибыльность не оценивалась.
@@ -34,6 +34,13 @@ Windows: setup_windows.cmd → run_paper_windows.cmd; начальный сни�
 ни обхода контроля окон нет. Причина реального расхождения пока не установлена:
 нужны безопасные строки с Windows. [Разбор](CURRENT_SESSIONS_RU.md),
 [проверки](CURRENT_SESSIONS_TEST_RESULTS.txt).
+
+Для случая requested_exchange=other/returned_exchanges=[other] добавлена
+изолированная локальная команда diagnose_exchange_codes_local_windows.cmd.
+Она показывает фактические коды, не применяет публичный allowlist, скрывает
+отражённый токен/небезопасные строки и запрещает перенаправление вывода.
+Файлов/публичных логов не создаёт, api.py и PAPER-модули этим изменением не затронуты.
+Реальное соответствие кодов пока не установлено. [Инструкция](LOCAL_EXCHANGE_CODES_RU.md).
 
 Полный аудит и остаточные риски: [AUTONOMOUS_FORWARD_AUDIT_RU.md](AUTONOMOUS_FORWARD_AUDIT_RU.md).
 Фактические проверки: [AUTONOMOUS_FORWARD_TEST_RESULTS.txt](AUTONOMOUS_FORWARD_TEST_RESULTS.txt).

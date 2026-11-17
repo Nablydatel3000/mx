@@ -23,7 +23,7 @@ isComplete=true и рассчитывает прежние пересечени�
 из стандартного Forward; historical replay сохраняет явные временные допущения.
 Windows: setup_windows.cmd → run_paper_windows.cmd; начальный снимок необязателен.
 
-180 offline-тестов прошли на Linux/Python 3.12 и 3.13, включая непрерывный цикл
+188 offline-тестов прошли на Linux/Python 3.12 и 3.13, включая непрерывный цикл
 с имитацией API, возобновление SQLite, выходные UTC, незавершённые свечи, пропуски,
 ревизии, устаревшие цены и сохранение позиции при сбоях. Windows CI уже настроен;
 новый реальный запуск Windows/API в этой среде не выполнен. Прибыльность не оценивалась.
@@ -48,6 +48,16 @@ Windows: setup_windows.cmd → run_paper_windows.cmd; начальный сни�
 PAPER/SQLite и торговые проверки сохранены. Для пользовательской пары кодов,
 коллизий регистра и интервалов выбранной записи добавлены шесть регрессий.
 [Результаты и остаточная Windows-проверка](EXCHANGE_CASEFOLD_RU.md).
+
+Для последующего реального STOP о неподдержанном detailed interval добавлен
+изолированный снимок TradingSchedules: diagnose_schedule_snapshot_windows.cmd.
+Он сохраняет локально только коды секций, UTC-границы запроса, дни/флаги, типы и
+границы detailed intervals и 13 legacy timestamps. Отдельная проверка JSON
+отмечает пропуски/аномалии без разрешения исполнения. Есть offline --validate.
+Все существовавшие Python-модули этим последним изменением оставлены без изменений;
+parse_day, стратегия, PAPER, SQLite и торговые ограничения не корректировались.
+Реального снимка пока нет; ошибка интервалов не объявляется исправленной.
+[Диагностика, официальная схема и передача файлов](SCHEDULE_SNAPSHOT_RU.md).
 
 Полный аудит и остаточные риски: [AUTONOMOUS_FORWARD_AUDIT_RU.md](AUTONOMOUS_FORWARD_AUDIT_RU.md).
 Фактические проверки: [AUTONOMOUS_FORWARD_TEST_RESULTS.txt](AUTONOMOUS_FORWARD_TEST_RESULTS.txt).

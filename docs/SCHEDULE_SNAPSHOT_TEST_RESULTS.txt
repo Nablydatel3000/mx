@@ -1,0 +1,36 @@
+Date: 2026-11-17
+Branch: gldrubf-v1-paper-api / PR #1
+Baseline: 7792cec8d74fb8f3b4bf0ae532ae0775222655ed
+Real authorized API / real user snapshot / Windows run: NOT PERFORMED
+Synthetic sanitized schedule fixtures only; no broker orders or PAPER execution.
+Official investAPI HEAD 3eaf23a25f598fe483c913184acdbd9132bc68d2 rechecked.
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 188 tests in 0.946s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+EXIT: 0
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.diagnose_schedule_snapshot --help
+EXIT: 0
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 188 tests in 1.030s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -m compileall -q src tests
+EXIT: 0
+COMMAND: /usr/bin/python3.13 -m src.gldrubf_bot.diagnose_schedule_snapshot --help
+EXIT: 0
+ALL existing Python modules unchanged byte-for-byte: PASS (including api.parse_day, strategy, PAPER, SQLite, limits)
+13 legacy time fields cross-checked against official TradingDay protobuf: PASS
+Windows launcher CRLF: PASS (not cmd.exe execution)
+Local diagnostic JSON excluded from Git by data/ rule: PASS
+git diff --check: PASS

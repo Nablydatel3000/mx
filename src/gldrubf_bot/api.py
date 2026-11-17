@@ -99,10 +99,15 @@ def current_schedule_request(exchange, now):
     return dict(exchange=exchange, **{'from': iso(start), 'to': iso(start + timedelta(days=2))})
 
 
+def exchange_matches(left, right):
+    """Compare identifiers by case only; never rewrite a request or infer aliases."""
+    return isinstance(left, str) and isinstance(right, str) and left.casefold() == right.casefold()
+
+
 def calendar_response_summary(result, exchange, *, token=None):
     """Bounded public codes only; never echo arbitrary response text or secrets.
 
-    Unknown section names are redacted, but matching always uses original values.
+    Unknown section names are redacted; exact and casefold counts remain distinct.
     An omitted repeated exchanges field is the protobuf JSON empty-list case.
     """
     records = result.get('exchanges', []) if isinstance(result, dict) else None
@@ -113,7 +118,8 @@ def calendar_response_summary(result, exchange, *, token=None):
                     for x in items})
     return dict(requested_exchange=public_exchange(exchange, token=token),
         returned_exchanges=codes, returned_count=len(items), response_shape_valid=valid,
-        exact_matches=sum(isinstance(x, dict) and x.get('exchange') == exchange for x in items))
+        exact_matches=sum(isinstance(x, dict) and x.get('exchange') == exchange for x in items),
+        casefold_matches=sum(isinstance(x, dict) and exchange_matches(x.get('exchange'), exchange) for x in items))
 
 
 def _schedule_error_context(error, payload, token=None):
@@ -396,7 +402,7 @@ class ReadOnlyClient:
             payload = schedule_request(exchange, cursor, end)
             finish = instant(payload['to'])
             result = self.call('InstrumentsService/TradingSchedules', payload)
-            matching = [x for x in result.get('exchanges', []) if x.get('exchange') == exchange]
+            matching = [x for x in result.get('exchanges', []) if exchange_matches(x.get('exchange'), exchange)]
             if len(matching) != 1:
                 raise DataError('Missing/ambiguous exchange calendar')
             for raw in matching[0].get('days', []):
@@ -424,7 +430,7 @@ class ReadOnlyClient:
         if not details['response_shape_valid']:
             raise DataError('Invalid current exchange calendar response; no permission inferred; ' +
                             json.dumps(details, sort_keys=True))
-        matching = [x for x in result.get('exchanges', []) if x.get('exchange') == exchange]
+        matching = [x for x in result.get('exchanges', []) if exchange_matches(x.get('exchange'), exchange)]
         if len(matching) != 1:
             details['category'] = 'calendar_exchange_missing' if not matching else 'calendar_exchange_ambiguous'
             raise DataError('Missing/ambiguous current exchange calendar; no permission inferred; ' +

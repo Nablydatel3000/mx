@@ -5,7 +5,7 @@ import sys
 from datetime import date, datetime, timedelta, time as daytime
 
 from .api import (APIError, ALLOWED, ReadOnlyClient, public_exchange, schedule_request,
-                  current_schedule_request, calendar_response_summary)
+                  current_schedule_request, calendar_response_summary, exchange_matches)
 from .api_error_codes import KNOWN_API_CODES
 from .diagnose_api import read_token
 from .models import DataError, UTC, instant, iso
@@ -32,7 +32,7 @@ def _probe(client, stage, payload, exchange):
         exchanges = response.get('exchanges', [])
         if not isinstance(exchanges, list) or any(not isinstance(x, dict) for x in exchanges):
             raise DataError('Invalid calendar response')
-        matched = any(row.get('exchange') == exchange for row in exchanges)
+        matched = sum(exchange_matches(row.get('exchange'), exchange) for row in exchanges) == 1
         details.update(http_status=200, category='calendar_received' if matched else 'calendar_exchange_missing',
                        instrument_exchange_present=matched)
         passed = matched
@@ -87,10 +87,10 @@ def run_current(client, now):
         try:
             response = client.call(METHOD, payload)
             summary = calendar_response_summary(response, instrument.exchange, token=token)
-            passed = summary['response_shape_valid'] and summary['exact_matches'] == 1
+            passed = summary['response_shape_valid'] and summary['casefold_matches'] == 1
             category = ('invalid_calendar_response' if not summary['response_shape_valid'] else
-                        'calendar_exchange_missing' if summary['exact_matches'] == 0 else
-                        'calendar_exchange_ambiguous' if summary['exact_matches'] > 1 else 'calendar_exact_match')
+                        'calendar_exchange_missing' if summary['casefold_matches'] == 0 else
+                        'calendar_exchange_ambiguous' if summary['casefold_matches'] > 1 else 'calendar_casefold_match')
             details.update(summary, http_status=200, category=category)
         except APIError as error:
             details.update(_safe_error(error), requested_exchange=public_exchange(instrument.exchange, token=token))

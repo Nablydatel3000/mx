@@ -5,7 +5,7 @@ import re
 import sys
 from datetime import datetime
 
-from .api import APIError, ALLOWED, ReadOnlyClient, current_schedule_request
+from .api import APIError, ALLOWED, ReadOnlyClient, current_schedule_request, exchange_matches
 from .diagnose_api import read_token
 from .diagnose_schedules import _safe_error
 from .models import DataError, UTC
@@ -51,9 +51,11 @@ def run(client, now, *, token):
                 raise DataError('Invalid exchange identifiers response')
             codes = [x['exchange'] for x in rows]  # Preserve ordering and duplicates.
             matched = sum(code == instrument.exchange for code in codes)
+            normalized = sum(exchange_matches(code, instrument.exchange) for code in codes)
             details.update(http_status=200, category='codes_observed', returned_count=len(codes),
-                returned_exchanges=[local_code(code, token) for code in codes], exact_matches=matched)
-            passed = matched == 1
+                returned_exchanges=[local_code(code, token) for code in codes], exact_matches=matched,
+                casefold_matches=normalized)
+            passed = normalized == 1
         except APIError as error:
             details.update(_safe_error(error))
             passed = False

@@ -53,6 +53,74 @@ class CurrentSessionsTests(unittest.TestCase):
         self.assertIn('"exact_matches": 2', str(cm.exception))
         self.assertIn('calendar_exchange_ambiguous', str(cm.exception))
 
+    def test_reported_gldrubf_codes_match_case_only_and_preserve_request(self):
+        # Identifiers reported by the user; session data below remains synthetic.
+        for requested, returned in [('forts_futures_weekend','FORTS_FUTURES_WEEKEND'),
+                                    ('FORTS_FUTURES_WEEKEND','forts_futures_weekend'),
+                                    ('FoRtS_Futures_Weekend','fOrTs_FUTURES_weekend')]:
+            response = {'exchanges':[dict(exchange=returned,days=[day('2026-11-17')])]}
+            for method in ('current_sessions','schedules'):
+                with self.subTest(requested=requested,returned=returned,method=method):
+                    client = self.client(response)
+                    sessions = (client.current_sessions(requested,NOW) if method=='current_sessions' else
+                                client.schedules(requested,instant('2026-11-17T00:00:00Z'),
+                                                 instant('2026-11-18T00:00:00Z')))
+                    self.assertTrue(next(iter(sessions.values())).contains(NOW))
+                    self.assertEqual(json.loads(self.transport.call_args.args[0].data)['exchange'],requested)
+
+    def test_casefold_collision_stops_even_with_one_literal_match(self):
+        requested = 'forts_futures_weekend'
+        client = self.client({'exchanges':[dict(exchange=code,days=[day('2026-11-17')])
+                                          for code in [requested,requested.upper()]]})
+        with self.assertRaises(DataError) as cm:client.current_sessions(requested,NOW)
+        self.assertIn('"exact_matches": 1',str(cm.exception))
+        self.assertIn('"casefold_matches": 2',str(cm.exception))
+        self.assertIn('calendar_exchange_ambiguous',str(cm.exception))
+
+    def test_casefold_has_no_aliases_whitespace_or_punctuation_heuristics(self):
+        for returned in ('FORTS','MOEX','FORTS_EVENING','FORTS_FUTURES_WEEKEND ',
+                         'FORTS-FUTURES-WEEKEND'):
+            with self.subTest(returned=returned),self.assertRaises(DataError) as cm:
+                self.client({'exchanges':[dict(exchange=returned,days=[day('2026-11-17')])]}).current_sessions(
+                    'forts_futures_weekend',NOW)
+            self.assertIn('"casefold_matches": 0',str(cm.exception))
+
+    def test_selected_casefold_record_keeps_windows_clearing_auctions_and_detailed_intervals(self):
+        raw = day('2026-11-17')
+        raw.update(clearingStartTime='2026-11-17T12:00:00Z',clearingEndTime='2026-11-17T12:10:00Z',
+                   eveningStartTime='2026-11-17T19:00:00Z',eveningEndTime='2026-11-17T21:00:00Z',
+                   openingAuctionStartTime='2026-11-17T07:00:00Z',openingAuctionEndTime='2026-11-17T07:05:00Z',
+                   closingAuctionStartTime='2026-11-17T17:50:00Z',closingAuctionEndTime='2026-11-17T18:00:00Z',
+                   intervals=[dict(type='fixture',interval=dict(startTs='2026-11-17T07:00:00Z',
+                                                               endTs='2026-11-17T18:00:00Z'))])
+        response = {'exchanges':[dict(exchange='FORTS',days=None),
+                                dict(exchange='FORTS_FUTURES_WEEKEND',days=[raw])]}
+        session = next(iter(self.client(response).current_sessions('forts_futures_weekend',NOW).values()))
+        for clock, allowed in [('07:02',False),('07:05',True),('12:05',False),('12:10',True),
+                               ('17:55',False),('18:30',False),('20:00',True),('21:00',False)]:
+            self.assertEqual(session.contains(instant('2026-11-17T'+clock+':00Z')),allowed)
+        self.assertEqual(session.close,instant('2026-11-17T21:00:00Z'))
+
+    def test_matched_real_codes_do_not_bypass_days_validation(self):
+        unsupported = day('2026-11-17')
+        unsupported['intervals'] = [dict(type='unknown',interval=dict(
+            startTs='2026-11-17T22:00:00Z',endTs='2026-11-17T23:00:00Z'))]
+        incomplete = day('2026-11-17');incomplete.pop('endTime')
+        conflicting = [day('2026-11-17'),day('2026-11-17',trading=False)]
+        for days in (None,[None],[unsupported],[incomplete],conflicting):
+            with self.subTest(days=days),self.assertRaises(DataError):
+                self.client({'exchanges':[dict(exchange='FORTS_FUTURES_WEEKEND',days=days)]}).current_sessions(
+                    'forts_futures_weekend',NOW)
+
+    def test_current_diagnostic_separates_literal_from_casefold_matches(self):
+        client = self.diagnostic_client([{'exchanges':[{'exchange':'FORTS_FUTURES_WEEKEND'}]}]*2)
+        client.instrument.return_value = Instrument('fixture','figi','GLDRUBF','forts_futures_weekend',1)
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(diag.run_current(client,NOW),0)
+        rows = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertTrue(all(r['exact_matches']==0 and r['casefold_matches']==1 for r in rows))
+        self.assertTrue(all(r['category']=='calendar_casefold_match' for r in rows))
+
     def test_omitted_and_empty_exchanges_are_valid_empty_lists_but_not_permission(self):
         for response in ({}, {'exchanges':[]}):
             with self.subTest(response=response), self.assertRaises(DataError) as cm:
@@ -104,7 +172,7 @@ class CurrentSessionsTests(unittest.TestCase):
             self.assertEqual(diag.run_current(client,NOW),1)
         rows = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual([r['exact_matches'] for r in rows],[0,1])
-        self.assertEqual([r['category'] for r in rows],['calendar_exchange_missing','calendar_exact_match'])
+        self.assertEqual([r['category'] for r in rows],['calendar_exchange_missing','calendar_casefold_match'])
         payloads = [json.loads(c.args[0].data) for c in self.transport.call_args_list]
         self.assertEqual(payloads[0],current_schedule_request(CODE,NOW))
         self.assertEqual(payloads[1],{k:v for k,v in payloads[0].items() if k!='exchange'})
@@ -122,7 +190,7 @@ class CurrentSessionsTests(unittest.TestCase):
                                         {'exchanges':[{'exchange':'FORTS'},{'exchange':CODE}]}])
         with contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(diag.run_current(client,NOW),0)
-        self.assertEqual(output.getvalue().count('calendar_exact_match'),2)
+        self.assertEqual(output.getvalue().count('calendar_casefold_match'),2)
         # This probes only codes; it deliberately does not certify trading windows.
 
     def test_current_control_continues_after_api_error_without_logging_exception_text(self):

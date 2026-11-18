@@ -1,0 +1,135 @@
+GLDRUBF isolated LIVE preparation — 2026-11-18
+Base: cc67cfdff833fd689a8967be7b709a77e5a7a6cf
+Broker operations use mocks/synthetic credentials only. No real token, API account/order, VPS or deployment.
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python --version
+Python 3.12.14
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest tests.test_live -v
+
+test_balance_margin_and_portfolio_sources_agree (tests.test_live.BrokerReadTests.test_balance_margin_and_portfolio_sources_agree) ... ok
+test_margin_deficit_is_reported_but_does_not_hide_risk_reducing_position (tests.test_live.BrokerReadTests.test_margin_deficit_is_reported_but_does_not_hide_risk_reducing_position) ... ok
+test_operations_authoritative_snapshot_deduplicates_page_boundary (tests.test_live.BrokerReadTests.test_operations_authoritative_snapshot_deduplicates_page_boundary) ... ok
+test_position_over_two_other_asset_or_mismatched_echo_refused (tests.test_live.BrokerReadTests.test_position_over_two_other_asset_or_mismatched_echo_refused) ... ok
+test_request_uuid_get_state_and_cancel_use_official_id_type (tests.test_live.BrokerReadTests.test_request_uuid_get_state_and_cancel_use_official_id_type) ... ok
+test_two_contract_capital_threshold_uses_live_go_and_point_value (tests.test_live.LiveCapitalTests.test_two_contract_capital_threshold_uses_live_go_and_point_value) ... ok
+test_actual_cli_once_uses_mock_broker_and_restores_environment (tests.test_live.LiveEngineTests.test_actual_cli_once_uses_mock_broker_and_restores_environment) ... ok
+test_blocked_futures_position_only_monitored_never_opens_another_order (tests.test_live.LiveEngineTests.test_blocked_futures_position_only_monitored_never_opens_another_order) ... ok
+test_bootstrap_does_not_send_historical_order (tests.test_live.LiveEngineTests.test_bootstrap_does_not_send_historical_order) ... ok
+test_cancel_ack_does_not_assume_zero_position (tests.test_live.LiveEngineTests.test_cancel_ack_does_not_assume_zero_position) ... ok
+test_capital_preflight_is_read_only_and_works_while_runner_locked (tests.test_live.LiveEngineTests.test_capital_preflight_is_read_only_and_works_while_runner_locked) ... ok
+test_cli_interrupt_cancels_before_runner_lock_is_released (tests.test_live.LiveEngineTests.test_cli_interrupt_cancels_before_runner_lock_is_released) ... ok
+test_confirmed_fill_but_lagging_position_blocks_opposite_open (tests.test_live.LiveEngineTests.test_confirmed_fill_but_lagging_position_blocks_opposite_open) ... ok
+test_crash_after_persist_before_http_does_not_resend_unknown_uuid (tests.test_live.LiveEngineTests.test_crash_after_persist_before_http_does_not_resend_unknown_uuid) ... ok
+test_expired_permission_or_absent_flag_cannot_send (tests.test_live.LiveEngineTests.test_expired_permission_or_absent_flag_cannot_send) ... ok
+test_foreign_order_or_position_never_adopted (tests.test_live.LiveEngineTests.test_foreign_order_or_position_never_adopted) ... ok
+test_initialized_ledger_identity_is_never_silently_rebound (tests.test_live.LiveEngineTests.test_initialized_ledger_identity_is_never_silently_rebound) ... ok
+test_insufficient_capital_or_capacity_never_downsizes (tests.test_live.LiveEngineTests.test_insufficient_capital_or_capacity_never_downsizes) ... ok
+test_kill_revocation_and_ttl_cancel_only_owned_order (tests.test_live.LiveEngineTests.test_kill_revocation_and_ttl_cancel_only_owned_order) ... ok
+test_ledger_tamper_negative_trade_or_missing_meta_refused (tests.test_live.LiveEngineTests.test_ledger_tamper_negative_trade_or_missing_meta_refused) ... ok
+test_missing_stage_details_block_instead_of_inventing_fill (tests.test_live.LiveEngineTests.test_missing_stage_details_block_instead_of_inventing_fill) ... ok
+test_old_sqlite_copy_is_refused_by_external_intent_highwater (tests.test_live.LiveEngineTests.test_old_sqlite_copy_is_refused_by_external_intent_highwater) ... ok
+test_outside_window_broker_fill_is_preserved_and_halts (tests.test_live.LiveEngineTests.test_outside_window_broker_fill_is_preserved_and_halts) ... ok
+test_partial_cancel_records_real_position_and_halts (tests.test_live.LiveEngineTests.test_partial_cancel_records_real_position_and_halts) ... ok
+test_partial_fill_restart_finishes_same_order_without_duplicate (tests.test_live.LiveEngineTests.test_partial_fill_restart_finishes_same_order_without_duplicate) ... ok
+test_position_changed_during_preflight_is_not_traded (tests.test_live.LiveEngineTests.test_position_changed_during_preflight_is_not_traded) ... ok
+test_price_limit_does_not_chase_book (tests.test_live.LiveEngineTests.test_price_limit_does_not_chase_book) ... ok
+test_quote_expires_during_capacity_check_no_dispatch (tests.test_live.LiveEngineTests.test_quote_expires_during_capacity_check_no_dispatch) ... ok
+test_rejection_halts_without_retry (tests.test_live.LiveEngineTests.test_rejection_halts_without_retry) ... ok
+test_repeated_signal_and_filled_restart_no_new_order (tests.test_live.LiveEngineTests.test_repeated_signal_and_filled_restart_no_new_order) ... ok
+test_reversal_waits_for_full_close_and_broker_flat (tests.test_live.LiveEngineTests.test_reversal_waits_for_full_close_and_broker_flat) ... ok
+test_same_account_second_state_directory_is_locked (tests.test_live.LiveEngineTests.test_same_account_second_state_directory_is_locked) ... ok
+test_session_end_buffer_prevents_new_order (tests.test_live.LiveEngineTests.test_session_end_buffer_prevents_new_order) ... ok
+test_stale_price_cross_window_and_fee_ceiling_block (tests.test_live.LiveEngineTests.test_stale_price_cross_window_and_fee_ceiling_block) ... ok
+test_statistics_available_while_runner_is_locked_no_api (tests.test_live.LiveEngineTests.test_statistics_available_while_runner_is_locked_no_api) ... ok
+test_timeout_after_acceptance_is_never_automatically_reposted (tests.test_live.LiveEngineTests.test_timeout_after_acceptance_is_never_automatically_reposted) ... ok
+test_trade_identity_is_scoped_to_order_not_assumed_globally_unique (tests.test_live.LiveEngineTests.test_trade_identity_is_scoped_to_order_not_assumed_globally_unique) ... ok
+test_ttl_cancels_once_and_halts (tests.test_live.LiveEngineTests.test_ttl_cancels_once_and_halts) ... ok
+test_two_contract_order_has_limit_bound_and_independent_gates (tests.test_live.LiveEngineTests.test_two_contract_order_has_limit_bound_and_independent_gates) ... ok
+test_failure_diagnostics_do_not_contain_credentials_or_body (tests.test_live.LiveTransportTests.test_failure_diagnostics_do_not_contain_credentials_or_body) ... ok
+test_mutation_single_attempt_and_read_only_client_stays_sealed (tests.test_live.LiveTransportTests.test_mutation_single_attempt_and_read_only_client_stays_sealed) ... ok
+test_status_transport_cannot_write_even_with_trading_token (tests.test_live.LiveTransportTests.test_status_transport_cannot_write_even_with_trading_token) ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 0.320s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+
+----------------------------------------------------------------------
+Ran 279 tests in 2.029s
+
+OK
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+
+----------------------------------------------------------------------
+Ran 279 tests in 2.108s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.live --help
+usage: live.py [-h] [--config CONFIG] [--state STATE]
+               [--credential-file CREDENTIAL_FILE] [--allow-live]
+               [--acknowledge ACKNOWLEDGE] [--expires-utc EXPIRES_UTC]
+               [--once] [--refresh]
+               {init,arm,run,status,preflight,sync,resume,kill,cancel,install-token}
+
+Separate GLDRUBF LIVE, explicitly gated. Never uses PAPER DB.
+
+positional arguments:
+  {init,arm,run,status,preflight,sync,resume,kill,cancel,install-token}
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --state STATE
+  --credential-file CREDENTIAL_FILE
+  --allow-live
+  --acknowledge ACKNOWLEDGE
+  --expires-utc EXPIRES_UTC
+  --once
+  --refresh             Status only: refresh broker reads, no orders
+
+exit_code=0
+
+$ sh -n deploy/live/status.sh
+
+
+exit_code=0
+
+$ systemd-analyze verify deploy/live/gldrubf-live.service
+
+
+exit_code=0
+
+PAPER unchanged: api.py SHA256=22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad
+PAPER unchanged: engine.py SHA256=ce8cbce68ef80e11cd335e42e5adc8ef3c3e8e679e8ada30d80d5f0fbcbb79cc
+PAPER unchanged: strategy.py SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+PAPER unchanged: autonomous.py SHA256=e242ddd5ebdb201bd314441a4d7b5e0c385df2584070fc482d25d3416ce9dacd
+PAPER unchanged: locking.py SHA256=eded44812b11cba29f6bb70901c97d540d802cf246c04249ed2e927e3b7932a9
+PAPER unchanged: cli.py SHA256=bf46afe8a426753a978a14ca55eb092d2897db4f3cdf6c3250493489d8e63e86
+PAPER unchanged: vps.py SHA256=0c75871ce86b8b49eb2ecf3d56d0cd4d1f3ccc937844caa5e9205105ac6289cd
+LIVE source: live.py SHA256=f409fac7aa85c28acd583e9f388b470973c2baf2bee82c6289a394459a64ccbe
+LIVE source: live_api.py SHA256=3e23641059ff41a7edfb26b81b1738a3807f5737990f50dabed984fa448d5afa
+LIVE source: live_store.py SHA256=4111cb05b7b9c86290790079180c94c973fb6bca9dea44b38cbff4c30344b69e
+Unfilled production config rejected; no fallback risk defaults.
+Actual broker IOC/GetMaxLots/finance/trade stage compatibility unverified.
+Linux checks passed; Windows CI execution/results not asserted.
+RESULT: ALL AVAILABLE CHECKS PASSED — 279 total tests; 42 new LIVE controls.

@@ -1,0 +1,48 @@
+{
+  "capital_rub": 15000,
+  "contracts": 2,
+  "actual_go_and_point_value_not_verified": true,
+  "scenario_policy_not_production_defaults": {
+    "multiplier": 2,
+    "reserve_rub": 1000,
+    "fee_rub": 10
+  },
+  "cases": [
+    {
+      "case": "illustration_only",
+      "unverified_example_go_rub": 1400,
+      "unverified_example_rub_per_point": 1,
+      "required_rub": "10804.4",
+      "available_rub": "15000",
+      "current_margin_two_rub": "2800",
+      "historical_daily_drawdown_two_rub": "4194.4",
+      "allowed": true,
+      "historical_drawdown_is_scenario": true,
+      "actual_historical_funding_and_intraday_risk_verified": false
+    },
+    {
+      "case": "high_margin_refusal",
+      "unverified_example_go_rub": 6000,
+      "unverified_example_rub_per_point": 1,
+      "required_rub": "29204.4",
+      "available_rub": "15000",
+      "current_margin_two_rub": "12000",
+      "historical_daily_drawdown_two_rub": "4194.4",
+      "allowed": false,
+      "historical_drawdown_is_scenario": true,
+      "actual_historical_funding_and_intraday_risk_verified": false
+    },
+    {
+      "case": "high_point_value_refusal",
+      "unverified_example_go_rub": 1400,
+      "unverified_example_rub_per_point": 10,
+      "required_rub": "48554.0",
+      "available_rub": "15000",
+      "current_margin_two_rub": "2800",
+      "historical_daily_drawdown_two_rub": "41944.0",
+      "allowed": false,
+      "historical_drawdown_is_scenario": true,
+      "actual_historical_funding_and_intraday_risk_verified": false
+    }
+  ]
+}

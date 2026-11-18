@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [gldrubf-v1-paper-api, fix/issue-2-forward-paper-vps]
+    branches: [gldrubf-v1-paper-api, fix/issue-2-forward-paper-vps, feature/gldrubf-live-gated]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -36,3 +36,5 @@ jobs:
         run: |
           bash -n deploy/linux/install.sh
           systemd-analyze verify deploy/linux/*.service deploy/linux/*.timer
+          sh -n deploy/live/status.sh
+          systemd-analyze verify deploy/live/gldrubf-live.service

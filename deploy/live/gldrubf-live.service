@@ -1,0 +1,39 @@
+[Unit]
+Description=Explicitly armed GLDRUBF LIVE (independent of PAPER)
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=gldrubf-live
+Group=gldrubf-live
+WorkingDirectory=/opt/gldrubf-live/mx
+ExecStart=/usr/bin/python3 -m src.gldrubf_bot.live run --allow-live --credential-file %d/trading-token
+LoadCredential=trading-token:/etc/gldrubf-live/trading-token
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+StateDirectory=gldrubf-live
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartPreventExitStatus=78
+RestartSec=15
+KillSignal=SIGTERM
+TimeoutStopSec=90
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/gldrubf-live
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

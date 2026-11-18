@@ -1,0 +1,42 @@
+[Unit]
+Description=GLDRUBF SMA20/50 autonomous PAPER (read-only API)
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target
+OnFailure=gldrubf-health.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=gldrubf
+Group=gldrubf
+WorkingDirectory=/opt/gldrubf/mx
+ExecStart=/usr/bin/python3 -m src.gldrubf_bot.vps run
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+LoadCredential=api-token:/etc/gldrubf/api-token
+StateDirectory=gldrubf
+StateDirectoryMode=0700
+LogsDirectory=gldrubf
+LogsDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=15
+RestartPreventExitStatus=78
+KillSignal=SIGTERM
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/gldrubf /var/log/gldrubf
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

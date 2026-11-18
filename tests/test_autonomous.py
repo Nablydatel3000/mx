@@ -32,17 +32,32 @@ class AutonomousTests(SQLiteResourceTestCase):
 
     def step(self,engine,path,now=NOW,*,quote=None,trading=True,audit=None):
         client,requests,_=client_for(candles(),quote_time=quote if quote is not None else now,trading=trading)
-        event=autonomous.step(engine,client,INST,path,clock=lambda:now,audit=audit)
+        event=autonomous.step(engine,client,INST,path,clock=lambda:now,audit=audit,max_complete_age_hours=168)
         return event,requests
+
+    def open_long(self,engine):
+        warm=UP[:50]+[UP[49]]
+        first,_,_,_=snapshot(self.root,candles(warm),'warm')
+        self.step(engine,first)
+        prices=warm+[UP[-1]]
+        next_path,_,_,_=snapshot(self.root,candles(prices),'long_signal',clock=NOW+timedelta(seconds=1))
+        self.step(engine,next_path,NOW+timedelta(seconds=1))
+        self.assertEqual(self.step(engine,next_path,NOW+timedelta(seconds=2))[0],'PAPER_FILL')
+        return next_path,prices
 
     def test_sma_both_directions_only_after_actual_knowledge_and_restart(self):
         for label,prices,target in [('long',UP,1),('short',DOWN,-1)]:
             with self.subTest(direction=label):
-                path,_,_,_=snapshot(self.root,candles(prices),label)
+                warm=prices[:50]+[prices[49]]
+                path,_,_,_=snapshot(self.root,candles(warm),label)
                 engine=self.engine(label+'.db')
                 self.assertEqual(self.step(engine,path)[0],'NO_FILL')
+                self.assertEqual(engine.summary()['pending'],0)
+                new_time=NOW+timedelta(seconds=60)
+                path,_,_,_=snapshot(self.root,candles(warm+[prices[-1]]),label+'_new',clock=new_time)
+                self.assertEqual(self.step(engine,path,new_time)[0],'NO_FILL')
                 self.assertEqual(engine.summary()['pending'],target)
-                later=NOW+timedelta(seconds=1)
+                later=new_time+timedelta(seconds=1)
                 self.assertEqual(self.step(engine,path,later)[0],'PAPER_FILL')
                 before=engine.summary()
                 self.assertEqual((before['position'],before['fills']),(target,1))
@@ -73,29 +88,27 @@ class AutonomousTests(SQLiteResourceTestCase):
         self.assertTrue(all(instant(p['from']).date()==NOW.date() for p in schedules))
 
     def test_incomplete_becomes_complete_without_manual_evidence_or_repeated_fill(self):
-        raw=candles();raw[-1]['isComplete']=False
+        raw=candles(UP+[1,1]);raw[-1]['isComplete']=False
         first,_,_,_=snapshot(self.root,raw)
         engine=self.engine()
         self.step(engine,first)
         self.step(engine,first,NOW+timedelta(seconds=1))
-        self.assertEqual(engine.summary()['position'],1)
+        self.assertEqual(engine.summary()['position'],0)
         later=NOW+timedelta(seconds=60)
-        second,_,_,_=snapshot(self.root,candles(),'second',previous=first,clock=later)
+        second,_,_,_=snapshot(self.root,candles(UP+[1,1]),'second',previous=first,clock=later)
         self.assertEqual(self.step(engine,second,later)[0],'NO_FILL')
         self.assertEqual(engine.summary()['pending'],-1)
         self.assertEqual(self.step(engine,second,later+timedelta(seconds=1))[0],'PAPER_FILL')
         before=engine.summary()
-        self.assertEqual((before['position'],before['fills']),(-1,3))
+        self.assertEqual((before['position'],before['fills']),(-1,1))
         self.step(self.engine(),second,later+timedelta(seconds=2))
-        self.assertEqual(self.engine().summary()['fills'],3)
+        self.assertEqual(self.engine().summary()['fills'],1)
 
     def test_api_gap_catchup_uses_current_price_and_confirmation_cost_clock(self):
-        first,_,_,_=snapshot(self.root,candles(UP))
         engine=self.engine()
-        self.step(engine,first)
-        self.step(engine,first,NOW+timedelta(seconds=1))
+        first,prices=self.open_long(engine)
         later=NOW+timedelta(days=3)
-        full=candles(UP+[1,1,1])
+        full=candles(prices+[1,1,1])
         second,_,_,_=snapshot(self.root,full,'after_gap',previous=first,clock=later)
         self.step(engine,second,later)
         self.assertEqual(engine.summary()['fills'],1)
@@ -147,26 +160,24 @@ class AutonomousTests(SQLiteResourceTestCase):
         self.assertEqual(engine.summary()['fills'],0)
 
     def test_network_or_audit_failure_preserves_position(self):
-        path,_,_,_=snapshot(self.root)
-        engine=self.engine();self.step(engine,path);self.step(engine,path,NOW+timedelta(seconds=1))
+        engine=self.engine();path,_=self.open_long(engine)
         before=engine.summary()
         client,_,_=client_for(candles())
         client.current_sessions=lambda *a: (_ for _ in ()).throw(APIError('safe network failure',retryable=True))
-        with self.assertRaises(APIError):autonomous.step(engine,client,INST,path,clock=lambda:NOW+timedelta(seconds=2))
+        with self.assertRaises(APIError):autonomous.step(engine,client,INST,path,clock=lambda:NOW+timedelta(seconds=3),max_complete_age_hours=168)
         self.assertEqual(self.engine().summary(),before)
         checks=[]
         def failed_audit(payload):checks.append(payload);raise OSError('storage fault')
-        with self.assertRaises(OSError):self.step(engine,path,NOW+timedelta(seconds=2),audit=failed_audit)
+        with self.assertRaises(OSError):self.step(engine,path,NOW+timedelta(seconds=3),audit=failed_audit)
         self.assertEqual(self.engine().summary(),before)
 
     def test_missing_financing_rate_rolls_back_complete_batch(self):
-        first,_,_,_=snapshot(self.root,candles(UP))
         engine=self.engine(funding_daily_rub=None)
-        self.step(engine,first);self.step(engine,first,NOW+timedelta(seconds=1))
+        first,prices=self.open_long(engine)
         before=engine.summary()
         later=NOW+timedelta(seconds=60)
-        full,_,_,_=snapshot(self.root,candles(),'new_bars',clock=later)
-        engine.rates[(START+timedelta(days=51)).date()]=Decimal(3)
+        full,_,_,_=snapshot(self.root,candles(prices+[1,1]),'new_bars',clock=later)
+        engine.rates[(START+timedelta(days=52)).date()]=Decimal(3)
         with self.assertRaisesRegex(DataError,'financing'):
             self.step(engine,full,later)
         self.assertEqual(engine.summary(),before)
@@ -191,9 +202,9 @@ class AutonomousTests(SQLiteResourceTestCase):
             client.transport=transport
             return client
         checks=[]
-        self.assertEqual(autonomous.step(engine,client_at(now),INST,path,clock=lambda:now,audit=checks.append),'NO_FILL')
+        self.assertEqual(autonomous.step(engine,client_at(now),INST,path,clock=lambda:now,audit=checks.append,max_complete_age_hours=168),'NO_FILL')
         later=now+timedelta(seconds=1)
-        self.assertEqual(autonomous.step(engine,client_at(later),INST,path,clock=lambda:later),'PAPER_FILL')
+        self.assertEqual(autonomous.step(engine,client_at(later),INST,path,clock=lambda:later,max_complete_age_hours=168),'NO_FILL')
         self.assertEqual(checks[0]['checked_at_msk'][:10],'2026-02-23')
         self.assertEqual(checks[0]['calendar'][0]['day'],'2026-02-23')
         self.assertEqual(instant(requests[0]['from']).date(),now.date())
@@ -204,7 +215,7 @@ class AutonomousTests(SQLiteResourceTestCase):
         engine=self.engine()
         client,_,_=client_for(candles())
         client.current_sessions=lambda *a:{}
-        self.assertEqual(autonomous.step(engine,client,INST,path,clock=lambda:NOW),'WAIT_CALENDAR')
+        self.assertEqual(autonomous.step(engine,client,INST,path,clock=lambda:NOW,max_complete_age_hours=168),'WAIT_CALENDAR')
         self.assertEqual(engine.summary()['fills'],0)
 
     def test_cli_retries_transient_metadata_failure_before_initializing_ledger(self):
@@ -219,9 +230,9 @@ class AutonomousTests(SQLiteResourceTestCase):
         pauses=[]
         def sleep(seconds):
             pauses.append(seconds)
-            if len(pauses)==1:self.assertFalse((self.root/'startup.db').exists())
+            if len(pauses)==1:self.assertEqual((self.root/'startup.db').stat().st_size,0)
             else:raise KeyboardInterrupt()
-        args=['paper','--history',str(path),'--db',str(self.root/'startup.db'),'--output',str(self.root/'logs'),
+        args=['paper','--max-complete-age-hours','168','--history',str(path),'--db',str(self.root/'startup.db'),'--output',str(self.root/'logs'),
               '--commission-rub','.5','--slippage-ticks','1','--funding-per-contract-day-rub','0']
         with patch('src.gldrubf_bot.cli.ReadOnlyClient',return_value=client), \
              patch('src.gldrubf_bot.cli.datetime',wraps=datetime) as app_clock, \
@@ -253,11 +264,13 @@ class AutonomousTests(SQLiteResourceTestCase):
         with self.assertRaises(DataError):replay_history(engine,path,evidence,quotes)
 
     def test_restart_rejects_semantically_corrupt_pending_or_sma_target(self):
-        path,_,_,_=snapshot(self.root,candles(UP))
+        warm=UP[:50]+[UP[49]]
+        path,_,_,_=snapshot(self.root,candles(warm),'before_signal')
+        new,_,_,_=snapshot(self.root,candles(warm+[UP[-1]]),'new_signal',clock=NOW+timedelta(seconds=1))
         for name,statement in [('pending',"UPDATE state SET pending=-1 WHERE id=1"),
                                ('cleared',"UPDATE state SET pending=0,pending_day=NULL,pending_after=NULL WHERE id=1"),
                                ('target',"UPDATE bars SET target=-1 WHERE target=1")]:
-            engine=self.engine(name+'.db');self.step(engine,path)
+            engine=self.engine(name+'.db');self.step(engine,path);self.step(engine,new,NOW+timedelta(seconds=1))
             with engine.db() as db:db.execute(statement)
             with self.subTest(kind=name),self.assertRaises(DataError):self.engine(name+'.db')
 
@@ -269,7 +282,7 @@ class AutonomousTests(SQLiteResourceTestCase):
 
     def test_continuous_cli_bootstraps_without_snapshot_or_evidence_and_recovers(self):
         current={'now':NOW}
-        raw=candles()
+        raw=candles(UP+[1])
         client,requests,_=client_for(raw)
         original=client.transport
         def transport(request,timeout):
@@ -282,12 +295,13 @@ class AutonomousTests(SQLiteResourceTestCase):
                     price={'units':'100','nano':0})]}).encode())
             return original(request,timeout)
         client.transport=transport;client.instrument=lambda uid:INST
-        args=['paper','--db',str(self.root/'cli.db'),'--output',str(self.root/'logs'),
+        args=['paper','--max-complete-age-hours','168','--db',str(self.root/'cli.db'),'--output',str(self.root/'logs'),
               '--commission-rub','.5','--slippage-ticks','1','--funding-per-contract-day-rub','2']
         sleeps=[]
         def sleep(seconds):
             sleeps.append(seconds)
             if len(sleeps)==2:raise KeyboardInterrupt()
+            raw.extend(candles(UP+[1,1])[52:])
             current['now']+=timedelta(seconds=60)
         with patch('src.gldrubf_bot.cli.ReadOnlyClient',return_value=client), \
              patch('src.gldrubf_bot.cli.datetime',wraps=datetime) as app_clock, \
@@ -299,7 +313,7 @@ class AutonomousTests(SQLiteResourceTestCase):
             first=json.loads((self.root/'logs/summary.json').read_text())
             current['now']+=timedelta(seconds=1)
             main(args+['--once'])
-        self.assertEqual(first['fills'],1)
+        self.assertEqual(first['fills'],0)
         self.assertEqual(json.loads((self.root/'logs/summary.json').read_text())['fills'],1)
         self.assertEqual(sleeps,[60,60])
         self.assertFalse(list((self.root/'logs/history').rglob('evidence_template.json')))

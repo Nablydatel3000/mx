@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [gldrubf-v1-paper-api]
+    branches: [gldrubf-v1-paper-api, fix/issue-2-forward-paper-vps]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -31,3 +31,8 @@ jobs:
         run: python -m compileall -q src tests
       - name: Check CLI entry point
         run: python -m src.gldrubf_bot.cli --help
+      - name: Validate Linux deployment files without starting services
+        if: runner.os == 'Linux'
+        run: |
+          bash -n deploy/linux/install.sh
+          systemd-analyze verify deploy/linux/*.service deploy/linux/*.timer

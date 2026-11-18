@@ -24,7 +24,7 @@ class WindowsWorkflowTests(unittest.TestCase):
         token.assert_called_once()
 
     def test_forward_does_not_request_per_candle_evidence(self):
-        inputs=['history_folder','new_forward.db','logs','.5','1','1000','','2']
+        inputs=['history_folder','168','new_forward.db','logs','.5','1','1000','','2']
         with patch.object(sys,'argv',['windows','paper']),patch.object(windows,'ask',side_effect=inputs), \
              patch.object(windows,'token') as token,patch.object(windows,'main') as main, \
              contextlib.redirect_stdout(io.StringIO()):
@@ -34,7 +34,7 @@ class WindowsWorkflowTests(unittest.TestCase):
         self.assertNotIn('--evidence',args)
         self.assertIn('--confirmation-cost-rub',args)
         token.assert_called_once()
-        inputs=['','new_forward.db','logs','.5','1','1000','','0']
+        inputs=['','168','new_forward.db','logs','.5','1','1000','','0']
         with patch.object(sys,'argv',['windows','paper']),patch.object(windows,'ask',side_effect=inputs), \
              patch.object(windows,'token'),patch.object(windows,'main') as main, \
              contextlib.redirect_stdout(io.StringIO()):

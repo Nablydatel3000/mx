@@ -1,0 +1,21 @@
+[Unit]
+Description=GLDRUBF verified online SQLite backup
+
+[Service]
+Type=oneshot
+User=gldrubf
+Group=gldrubf
+WorkingDirectory=/opt/gldrubf/mx
+ExecStart=/usr/bin/python3 -m src.gldrubf_bot.vps backup
+Environment=PYTHONDONTWRITEBYTECODE=1
+StateDirectory=gldrubf
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/gldrubf
+TimeoutStartSec=300
+StandardOutput=journal
+StandardError=journal

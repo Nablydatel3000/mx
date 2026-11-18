@@ -1,0 +1,30 @@
+Date: 2026-11-17
+Audited HEAD: 1f17cf3e019cf980ec3a88c4b7b2d831be6a8708
+Issue #2 read via HTML HTTP 200; API GraphQL/REST Forbidden.
+No real CSV, actual DB, authenticated broker API, Windows/VPS run, merge or deployment.
+New probes assert observed baseline behavior, not that detected defects are acceptable.
+
+Python 3.12.14
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 200 tests in 1.032s
+
+OK
+
+COMMAND: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning audits/issue_2/reproduce.py
+EXIT: 0
+7 probes completed; bootstrap, stale history, cross-window fill, API/restart guards, logical corruption, alias lock, two subprocess crash boundaries.
+Python 3.13.5
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+EXIT: 0
+----------------------------------------------------------------------
+Ran 200 tests in 1.009s
+
+OK
+
+COMMAND: /usr/bin/python3.13 -W error::ResourceWarning audits/issue_2/reproduce.py
+EXIT: 0
+7 probes completed; bootstrap, stale history, cross-window fill, API/restart guards, logical corruption, alias lock, two subprocess crash boundaries.
+ALL existing production code and tests unchanged byte-for-byte: PASS
+Process crashes tested; power loss, disk corruption hardware and Windows/VPS not tested.

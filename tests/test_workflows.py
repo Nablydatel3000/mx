@@ -68,15 +68,17 @@ class WorkflowTests(SQLiteResourceTestCase):
     def test_paper_next_observation_after_knowledge_and_stale_rejected(self):
         e=PaperEngine(self.root/'api.db','test-uid',costs())
         b=self.bars[:51];known=b[-1].closed_at+timedelta(minutes=10)
+        # First batch warms the first 50 bars; the 51st is a newly confirmed cross.
+        e.process_bars(b[:50],b[49].closed_at,forward=True)
         calendar={b[-1].day:TradingDay(b[-1].day,True,((b[-1].time,known+timedelta(hours=2)),),known+timedelta(hours=2))}
         client=Mock();client.point_value.return_value=D(2);client.completed_daily.return_value=(b,calendar)
         client.quote.return_value=Quote(known,D(100))
-        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:known),'NO_FILL')
+        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:known,max_complete_age_hours=168),'NO_FILL')
         later=known+timedelta(seconds=10);client.quote.return_value=Quote(later,D(100))
-        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:later),'PAPER_FILL')
-        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:later),'NO_FILL')
+        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:later,max_complete_age_hours=168),'PAPER_FILL')
+        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:later,max_complete_age_hours=168),'NO_FILL')
         old=known+timedelta(seconds=11);client.quote.return_value=Quote(old,D(100))
-        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:old+timedelta(hours=1)),'WAIT_FRESH_PRICE')
+        self.assertEqual(paper_step(e,client,self.inst,clock=lambda:old+timedelta(hours=1),max_complete_age_hours=168),'WAIT_FRESH_PRICE')
 
     def test_changed_point_value_stops_before_any_signal(self):
         e=PaperEngine(self.root/'api.db','test-uid',costs());client=Mock();client.point_value.return_value=D(3)

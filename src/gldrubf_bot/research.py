@@ -12,9 +12,9 @@ from .models import Bar, DataError, UTC, instant, iso
 
 def software_identity():
     root = Path(__file__).parent
-    return dict(model='SMA20/50-multiclock-paper-v2', python=platform.python_version(), sqlite=sqlite3.sqlite_version,
+    return dict(model='SMA20/50-forward-bootstrap-v2', python=platform.python_version(), sqlite=sqlite3.sqlite_version,
                 sources={name: digest((root/name).read_bytes()) for name in
-                         ('strategy.py','engine.py','api.py','history.py','research.py','autonomous.py')})
+                         ('strategy.py','engine.py','api.py','history.py','research.py','autonomous.py','locking.py')})
 
 
 def timing_evidence(snapshot, path, *, forward=False):
@@ -123,13 +123,21 @@ def replay_history(engine, snapshot, evidence_path, quotes_path):
                 quotes_sha256=quote_hash, software=software_identity())
 
 
-def forward_step(engine, client, instrument, snapshot, evidence_path, *, clock=lambda: datetime.now(UTC), max_age=120, audit=None):
+def forward_step(engine, client, instrument, snapshot, evidence_path, *, clock=lambda: datetime.now(UTC), max_age=120, audit=None,
+                 max_complete_age_hours=None):
     manifest, evidence, events, identities, _, evidence_hash = timing_evidence(snapshot, evidence_path, forward=True)
     if instrument.uid != engine.uid or manifest['uid'] != engine.uid or instrument.tick != engine.costs.tick:
         raise DataError('Forward UID/tick mismatch')
     if client.point_value(instrument) != engine.costs.point_value_rub:
         raise DataError('Monetary tick specification changed')
     now = instant(clock())
+    from .autonomous import history_age, same_window
+    _,source_rows=load_snapshot(snapshot)
+    age=history_age(source_rows,now,max_complete_age_hours)
+    if age is None or not age['fresh']:
+        if audit is not None:
+            audit(dict(event='WAIT_COMPLETE_HISTORY',checked_at=iso(now),complete_history_age=age))
+        return 'WAIT_COMPLETE_HISTORY'
     if instant(manifest['captured_at']) > now or any(available > now for _, available in events):
         raise DataError('Future snapshot/evidence cannot enter Forward')
     if len(events) < 51:
@@ -157,11 +165,19 @@ def forward_step(engine, client, instrument, snapshot, evidence_path, *, clock=l
     bars = [bar for bar, _ in events]
     # Catch-up is learned now, not at backdated historical fills.
     engine.process_bars(bars, observed, coverage_start=date.fromisoformat(evidence['expected_trade_days'][0]),
-                        coverage_end=date.fromisoformat(evidence['expected_trade_days'][-1]))
+                        coverage_end=date.fromisoformat(evidence['expected_trade_days'][-1]),forward=True)
+    if engine.summary()['migration_review_required']:
+        if audit is not None:audit(dict(event='WAIT_MIGRATION_REVIEW',checked_at=iso(observed)))
+        return 'WAIT_MIGRATION_REVIEW'
     quote = client.quote(instrument, clock)
     current = instant(clock())
     if current < observed:
         raise DataError('Clock moved backwards')
+    age=history_age(source_rows,current,max_complete_age_hours)
+    if age is None or not age['fresh']:
+        if audit is not None:
+            audit(dict(event='WAIT_COMPLETE_HISTORY',checked_at=iso(current),complete_history_age=age))
+        return 'WAIT_COMPLETE_HISTORY'
     def record_gate(event):
         if audit is not None:
             audit(dict(mode='forward-paper', event=event, uid=engine.uid, observed_at=iso(observed), checked_at=iso(current),
@@ -175,7 +191,7 @@ def forward_step(engine, client, instrument, snapshot, evidence_path, *, clock=l
         return 'WAIT_MARKET'
     if quote.time > current:
         raise DataError('Future quote')
-    if not any(s.contains(quote.time) and s.contains(current) for s in calendar.values()):
+    if not same_window(calendar,current,quote.time):
         record_gate('WAIT_MARKET')
         return 'WAIT_MARKET'
     if (current-quote.time).total_seconds() > max_age:

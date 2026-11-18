@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily GLDRUBF verified SQLite backup
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=300
+Persistent=true
+Unit=gldrubf-backup.service
+
+[Install]
+WantedBy=timers.target

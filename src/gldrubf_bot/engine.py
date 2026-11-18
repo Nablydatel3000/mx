@@ -43,15 +43,26 @@ class PaperEngine:
     def __init__(self, path, uid, costs, *, funding_rates=None):
         if not uid or not isinstance(uid, str):
             raise DataError('Explicit instrument UID is required')
-        self.path, self.uid, self.costs = Path(path), uid, costs
+        self.path, self.uid, self.costs = Path(path).resolve(), uid, costs
         self.rates = {date.fromisoformat(k): number(v) for k, v in (funding_rates or {}).items()}
         if costs.funding_daily_rub is not None and self.rates:
             raise DataError('Choose fixed scenario funding OR explicit rates')
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.db() as db:
+            version = db.execute('PRAGMA user_version').fetchone()[0]
+            if version not in (0,1):
+                raise DataError('Unsupported ledger version')
             legacy = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='paper_events'").fetchone()
             if legacy and db.execute('SELECT 1 FROM paper_events LIMIT 1').fetchone():
                 raise DataError('Legacy target-only DB has no fills: keep it unchanged and choose a NEW database')
+            tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            required={'metadata','bars','quotes','fills','funding','state'}
+            if tables & required:
+                if not required<=tables:
+                    raise DataError('Incomplete existing ledger schema; no automatic repair')
+                if any(db.execute('SELECT COUNT(*) FROM '+name).fetchone()[0]!=1
+                       for name in ('metadata','state')):
+                    raise DataError('Missing/ambiguous ledger metadata or state; no automatic repair')
             db.execute('CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY CHECK(id=1), config TEXT NOT NULL)')
             config = json.dumps(dict(schema=1, uid=uid, strategy='SMA20/50', costs=costs.payload()), sort_keys=True)
             previous = db.execute('SELECT config FROM metadata WHERE id=1').fetchone()
@@ -72,7 +83,18 @@ class PaperEngine:
                        gross TEXT NOT NULL, fees TEXT NOT NULL, funding TEXT NOT NULL,
                        pending INTEGER NOT NULL, pending_day TEXT, pending_after TEXT)''')
             db.execute("INSERT OR IGNORE INTO state VALUES (1,0,'0','0','0','0',0,NULL,NULL)")
+            db.execute('''CREATE TABLE IF NOT EXISTS forward_bootstrap(id INTEGER PRIMARY KEY CHECK(id=1),
+                          origin TEXT NOT NULL, through_day TEXT, known_at TEXT,
+                          review_required INTEGER NOT NULL DEFAULT 0 CHECK(review_required IN (0,1)))''')
+            if 'review_required' not in {r[1] for r in db.execute('PRAGMA table_info(forward_bootstrap)')}:
+                db.execute('ALTER TABLE forward_bootstrap ADD COLUMN review_required INTEGER NOT NULL DEFAULT 0')
+                db.execute("UPDATE forward_bootstrap SET review_required=1 WHERE origin='legacy' AND (SELECT pending FROM state WHERE id=1)!=0")
+            observed = db.execute("SELECT payload FROM bars LIMIT 1").fetchone()
+            if version==0 and observed and json.loads(observed[0]).get('kind')=='provider_daily_observed':
+                pending=db.execute('SELECT pending FROM state WHERE id=1').fetchone()[0]
+                db.execute("INSERT OR IGNORE INTO forward_bootstrap VALUES (1,'legacy',NULL,NULL,?)",(int(bool(pending)),))
             self._validate_state(db)
+            db.execute('PRAGMA user_version=1')
 
     @contextmanager
     def db(self):
@@ -114,6 +136,50 @@ class PaperEngine:
         if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
             raise DataError('SQLite integrity check failed')
         state = db.execute('SELECT * FROM state WHERE id=1').fetchone()
+        if state is None:
+            raise DataError('Missing persistent state')
+        bar_rows = {r['day']: r for r in db.execute('SELECT * FROM bars ORDER BY day')}
+        policy = db.execute('SELECT * FROM forward_bootstrap WHERE id=1').fetchone()
+        through = policy['through_day'] if policy and policy['origin']=='cold' else None
+        if policy:
+            if policy['review_required'] not in (0,1) or (policy['review_required'] and (policy['origin']!='legacy' or not state['pending'])):
+                raise DataError('Invalid migration review state')
+            if policy['origin']=='cold':
+                if through not in bar_rows or policy['known_at']!=bar_rows[through]['known_at']:
+                    raise DataError('Corrupt bootstrap boundary')
+                if any(r['known_at']!=policy['known_at'] for d,r in bar_rows.items() if d<=through):
+                    raise DataError('Bootstrap history disagrees with initialization time')
+            elif policy['origin']!='legacy' or policy['through_day'] is not None or policy['known_at'] is not None:
+                raise DataError('Invalid forward bootstrap policy')
+        elif any(json.loads(r['payload']).get('kind')=='provider_daily_observed' for r in bar_rows.values()):
+            raise DataError('Observed ledger missing durable bootstrap policy')
+        history, last_known = [], None
+        for label,row in bar_rows.items():
+            known = instant(row['known_at'])
+            if row['known_at']!=iso(known) or (last_known and known<last_known):
+                raise DataError('Corrupt bar knowledge chronology')
+            payload=json.loads(row['payload'])
+            cutoff=self._funding_cutoff(row)
+            if cutoff>known:
+                raise DataError('Bar known before completion/confirmation')
+            if payload.get('kind')=='provider_daily_observed':
+                close=payload['candle']['close']
+            else:
+                if payload['day']!=label or not payload['complete']:
+                    raise DataError('Corrupt legacy bar identity')
+                Bar(date.fromisoformat(label),instant(payload['time']),cutoff,
+                    *(number(payload[k],positive=True) for k in ('open','high','low','close')),payload['volume'])
+                close=payload['close']
+            history.append(DailyClose(date.fromisoformat(label),float(close)))
+            target=crossover(history).target if len(history)>=51 else 0
+            if target!=row['target']:
+                raise DataError('Stored SMA target disagrees with completed candle prefix')
+            last_known=known
+        eligible = [r for d,r in bar_rows.items() if r['target'] and (through is None or d>through)]
+        quotes = {r['time']:r for r in db.execute('SELECT * FROM quotes ORDER BY time')}
+        for stamp,row in quotes.items():
+            if stamp!=iso(instant(stamp)) or number(row['price'],positive=True)%self.costs.tick:
+                raise DataError('Corrupt quote timestamp/price/tick')
         position, entry, gross, fees = 0, Decimal(0), Decimal(0), Decimal(0)
         previous = None
         for f in db.execute('SELECT * FROM fills ORDER BY id'):
@@ -126,6 +192,13 @@ class PaperEngine:
             price = number(f['price'], positive=True)
             if f['side'] not in (-1, 1) or number(f['commission']) != self.costs.commission_rub:
                 raise DataError('Corrupt fill cost/side')
+            signal=bar_rows.get(f['signal_day'])
+            available=[r for r in eligible if instant(r['known_at'])<stamp]
+            quote=quotes.get(f['time'])
+            if (signal is None or signal not in eligible or signal['target']!=f['side'] or
+                    not available or available[-1]['day']!=signal['day'] or quote is None or
+                    price!=number(quote['price'])+f['side']*self.costs.slippage_ticks*self.costs.tick):
+                raise DataError('Fill disagrees with signal/quote/causality/slippage')
             if f['kind'] == 'OPEN' and position == 0:
                 position, entry, realized = f['side'], price, Decimal(0)
             elif f['kind'] == 'CLOSE' and position and f['side'] == -position:
@@ -137,7 +210,6 @@ class PaperEngine:
                 raise DataError('Fill P&L/position mismatch')
             gross += realized
             fees += number(f['commission'])
-        bar_rows = {r['day']: r for r in db.execute('SELECT * FROM bars')}
         funding_rows = {r['day']: r for r in db.execute('SELECT * FROM funding')}
         if set(bar_rows) != set(funding_rows):
             raise DataError('Funding coverage disagrees with processed daily bars')
@@ -152,8 +224,8 @@ class PaperEngine:
                 raise DataError('Funding rate disagrees with fixed scenario configuration')
             if f['position'] not in (-1, 0, 1) or number(f['cash']) != -f['position']*number(f['long_cost']):
                 raise DataError('Funding ledger mismatch')
-            if self.costs.funding_daily_rub is None and f['position'] and date.fromisoformat(f['day']) in self.rates:
-                if number(f['long_cost']) != self.rates[date.fromisoformat(f['day'])]:
+            if self.costs.funding_daily_rub is None and f['position']:
+                if number(f['long_cost']) != self.rates.get(date.fromisoformat(f['day'])):
                     raise DataError('Previously applied funding rate was revised')
             funding += number(f['cash'])
         if (state['position'] != position or number(state['entry']) != entry or number(state['gross']) != gross
@@ -161,20 +233,15 @@ class PaperEngine:
             raise DataError('Persistent state disagrees with ledger; no automatic repair')
         if state['pending'] not in (-1, 0, 1) or (bool(state['pending']) != bool(state['pending_day'] and state['pending_after'])):
             raise DataError('Invalid pending signal state')
+        if not state['pending'] and (state['pending_day'] is not None or state['pending_after'] is not None):
+            raise DataError('Orphan pending signal metadata')
         if state['pending']:
             instant(state['pending_after'])
-        if bar_rows and any(json.loads(r['payload']).get('kind')=='provider_daily_observed' for r in bar_rows.values()):
-            history, latest = [], None
-            for label,row in sorted(bar_rows.items()):
-                payload=json.loads(row['payload'])
-                if payload.get('kind')!='provider_daily_observed':
-                    raise DataError('Mixed daily clocks in autonomous ledger')
-                history.append(DailyClose(date.fromisoformat(label),float(payload['candle']['close'])))
-                target=crossover(history).target if len(history)>=51 else 0
-                if row['target']!=target:
-                    raise DataError('Stored SMA target disagrees with completed candle prefix')
-                if target:
-                    latest=row
+        if bar_rows:
+            kinds={json.loads(r['payload']).get('kind') for r in bar_rows.values()}
+            if len(kinds)>1:
+                raise DataError('Mixed daily clocks in ledger')
+            latest=eligible[-1] if eligible else None
             if state['pending']:
                 if (latest is None or state['pending']!=latest['target'] or state['pending_day']!=latest['day']
                         or state['pending_after']!=latest['known_at']):
@@ -188,12 +255,24 @@ class PaperEngine:
             elif state['position']:
                 raise DataError('Position exists without an observed SMA crossing')
 
+    def _forward_boundary(self, db, last_day, known_at):
+        row=db.execute('SELECT * FROM forward_bootstrap WHERE id=1').fetchone()
+        if row is None:
+            existing=db.execute('SELECT 1 FROM bars LIMIT 1').fetchone()
+            if existing:
+                pending=db.execute('SELECT pending FROM state WHERE id=1').fetchone()[0]
+                db.execute("INSERT INTO forward_bootstrap VALUES (1,'legacy',NULL,NULL,?)",(int(bool(pending)),))
+            else:
+                db.execute("INSERT INTO forward_bootstrap VALUES (1,'cold',?,?,0)",(last_day,iso(known_at)))
+            row=db.execute('SELECT * FROM forward_bootstrap WHERE id=1').fetchone()
+        return row['through_day'] if row['origin']=='cold' else None
+
     def latest_day(self):
         with self.db() as db:
             row = db.execute('SELECT MAX(day) FROM bars').fetchone()
             return date.fromisoformat(row[0]) if row[0] else None
 
-    def process_bars(self, bars, known_at, *, coverage_start=None, coverage_end=None):
+    def process_bars(self, bars, known_at, *, coverage_start=None, coverage_end=None, forward=False):
         """One atomic catch-up. Signals become known NOW, never at an invented old price.
 
         Multiple missed crossings supersede an unfilled target. No virtual historical fills.
@@ -214,6 +293,7 @@ class PaperEngine:
             if any(bars[0].day <= d <= bars[-1].day and d not in dates for d in self.rates):
                 raise DataError('Funding on a non-candle date is unsupported by the daily settlement model')
         with self.db() as db:
+            boundary=self._forward_boundary(db,bars[-1].day.isoformat(),known_at) if forward and bars else None
             if coverage_start is not None:
                 cached = {r[0] for r in db.execute('SELECT day FROM bars WHERE day>=? AND day<=?',
                           (coverage_start.isoformat(), coverage_end.isoformat()))}
@@ -256,7 +336,8 @@ class PaperEngine:
                 history.append(DailyClose(bar.day, float(bar.close)))
                 target = crossover(history).target if len(history) >= 51 else 0
                 db.execute('INSERT INTO bars VALUES (?,?,?,?)', (bar.day.isoformat(), payload, iso(known_at), target))
-                if target:
+                if target and (boundary is None or bar.day.isoformat()>boundary):
+                    db.execute('UPDATE forward_bootstrap SET review_required=0 WHERE id=1')
                     db.execute('UPDATE state SET pending=?,pending_day=?,pending_after=? WHERE id=1',
                                (target, bar.day.isoformat(), iso(known_at)))
 
@@ -273,10 +354,11 @@ class PaperEngine:
         if source_end > known_at or any(instant(r['observed_at']) > known_at for r in rows):
             raise DataError('Future candle observations cannot form signals')
         complete = {r['provider_day']: r for r in rows if r['is_complete']}
-        if len(complete) < 51:
-            raise DataError('Need 51 API-completed provider candles; no artificial warmup')
+        if not complete:
+            raise DataError('No API-completed provider candles to accept')
         with self.db() as db:
             cached = list(db.execute('SELECT * FROM bars ORDER BY day'))
+            boundary=self._forward_boundary(db,max(complete),known_at)
             for old in cached:
                 payload = json.loads(old['payload'])
                 if payload.get('kind') != 'provider_daily_observed':
@@ -318,7 +400,8 @@ class PaperEngine:
                 db.execute('INSERT INTO funding VALUES (?,?,?,?,?)', (label,iso(known_at),str(rate),held,str(cash)))
                 state = db.execute('SELECT funding FROM state WHERE id=1').fetchone()
                 db.execute('UPDATE state SET funding=? WHERE id=1', (str(number(state[0])+cash),))
-                if target:
+                if target and (boundary is None or label>boundary):
+                    db.execute('UPDATE forward_bootstrap SET review_required=0 WHERE id=1')
                     db.execute('UPDATE state SET pending=?,pending_day=?,pending_after=? WHERE id=1',
                                (target,label,iso(known_at)))
 
@@ -332,6 +415,9 @@ class PaperEngine:
         if quote.price % self.costs.tick:
             raise DataError('Quote is off the instrument tick grid')
         with self.db() as db:
+            policy=db.execute('SELECT review_required FROM forward_bootstrap WHERE id=1').fetchone()
+            if policy and policy['review_required']:
+                return False
             existing = db.execute('SELECT price FROM quotes WHERE time=?', (iso(quote.time),)).fetchone()
             if existing:
                 if number(existing[0]) != quote.price:
@@ -384,7 +470,11 @@ class PaperEngine:
         unrealized = ((mark - number(state['entry'])) * state['position'] * self.costs.point_value_rub
                       if mark is not None and state['position'] else Decimal(0))
         net = number(state['gross']) - number(state['fees']) + number(state['funding'])
+        bootstrap=db.execute('SELECT * FROM forward_bootstrap WHERE id=1').fetchone()
         return dict(uid=self.uid, position=state['position'], entry=state['entry'], pending=state['pending'],
+                    pending_day=state['pending_day'],bootstrap_origin=bootstrap['origin'] if bootstrap else None,
+                    bootstrap_through=bootstrap['through_day'] if bootstrap else None,
+                    migration_review_required=bool(bootstrap['review_required']) if bootstrap else False,
                     pending_after=state['pending_after'], observation_watermark=watermark[0] if watermark else None, realized_gross=state['gross'], commission=state['fees'],
                     funding=state['funding'], realized_net=str(net), unrealized=str(unrealized),
                     equity=str(self.costs.initial_cash_rub + net + unrealized),

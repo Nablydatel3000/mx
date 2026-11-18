@@ -10,6 +10,24 @@ from .research import bind_mode, software_identity
 MODE = 'autonomous-forward-v1'
 
 
+def history_age(rows, now, maximum_hours):
+    if type(maximum_hours) is not int or not 1<=maximum_hours<=8760:
+        raise DataError('Explicit max complete candle age (1..8760 UTC hours) required')
+    complete=[r for r in rows if r['is_complete']]
+    if not complete:
+        return None
+    latest=max(instant(r['time']) for r in complete)
+    age=(instant(now)-latest).total_seconds()
+    if age<0:
+        raise DataError('Future completed candle')
+    return dict(latest_complete=iso(latest),age_seconds=age,maximum_hours=maximum_hours,
+                fresh=age<=maximum_hours*3600)
+
+
+def same_window(calendar, now, quote_time):
+    return any(a<=now<b and a<=quote_time<b for day in calendar.values() for a,b in day.windows)
+
+
 def source_start(engine, now, *, requested=None, history_days=730):
     """Pin the original lookback across restart, never slide away accepted history."""
     now = instant(now)
@@ -33,7 +51,8 @@ def source_start(engine, now, *, requested=None, history_days=730):
     return start
 
 
-def step(engine,client,instrument,snapshot,*,clock=lambda:datetime.now(UTC),max_age=120,audit=None):
+def step(engine,client,instrument,snapshot,*,clock=lambda:datetime.now(UTC),max_age=120,audit=None,
+         max_complete_age_hours=None):
     manifest,rows=load_snapshot(snapshot)
     now=instant(clock())
     captured,end=instant(manifest['captured_at']),instant(manifest['to'])
@@ -55,13 +74,25 @@ def step(engine,client,instrument,snapshot,*,clock=lambda:datetime.now(UTC),max_
     if observed<now:
         raise DataError('Clock moved backwards')
     source_start(engine,observed,requested=manifest['from'])
-    if sum(r['is_complete'] for r in rows)<51 and engine.latest_day() is None:
+    age=history_age(rows,observed,max_complete_age_hours)
+    if age is not None and not age['fresh']:
+        if audit is not None:
+            audit(dict(mode=MODE,event='WAIT_COMPLETE_HISTORY',checked_at=iso(observed),complete_history_age=age))
+        return 'WAIT_COMPLETE_HISTORY'
+    complete_count=sum(r['is_complete'] for r in rows)
+    if not complete_count:
         if audit is not None:
             audit(dict(mode=MODE,event='WAIT_HISTORY',observed_at=iso(observed),
-                complete_count=sum(r['is_complete'] for r in rows),coverage_verified=False,
+                complete_count=complete_count,coverage_verified=False,
                 snapshot_sha256=manifest['candles_sha256']))
         return 'WAIT_HISTORY'
     engine.process_observed_candles(rows,observed,source_start=manifest['from'],source_end=manifest['to'])
+    if complete_count<51:
+        if audit is not None:audit(dict(event='WAIT_HISTORY',complete_count=complete_count,checked_at=iso(observed)))
+        return 'WAIT_HISTORY'
+    if engine.summary()['migration_review_required']:
+        if audit is not None:audit(dict(event='WAIT_MIGRATION_REVIEW',checked_at=iso(observed)))
+        return 'WAIT_MIGRATION_REVIEW'
     # Current permission is independent of historical provider labels.
     calendar=client.current_sessions(instrument.exchange,observed)
     quote=client.quote(instrument,clock)
@@ -71,9 +102,12 @@ def step(engine,client,instrument,snapshot,*,clock=lambda:datetime.now(UTC),max_
     if quote is not None and quote.time>current:
         raise DataError('Future quote')
     event='MARKET_GATES_PASSED'
-    if not calendar:
+    age=history_age(rows,current,max_complete_age_hours)
+    if age is not None and not age['fresh']:
+        event='WAIT_COMPLETE_HISTORY'
+    elif not calendar:
         event='WAIT_CALENDAR'
-    elif quote is None or not any(s.contains(current) and s.contains(quote.time) for s in calendar.values()):
+    elif quote is None or not same_window(calendar,current,quote.time):
         event='WAIT_MARKET'
     else:
         mark=engine.summary()['mark_time']
@@ -84,6 +118,7 @@ def step(engine,client,instrument,snapshot,*,clock=lambda:datetime.now(UTC),max_
             checked_at_msk=current.astimezone(MOSCOW).isoformat(),snapshot_sha256=manifest['candles_sha256'],
             data_clock='API_complete_first_confirmation_not_historical_close',coverage_verified=False,
             trading_dates_verified=False,costs=engine.costs.payload(),software=software_identity(),
+            complete_history_age=age,
             quote=dict(time=iso(quote.time),price=str(quote.price)) if quote else None,
             calendar=[dict(day=day.isoformat(),trading=s.trading,close=iso(s.close) if s.close else None,
                 windows=[[iso(a),iso(b)] for a,b in s.windows]) for day,s in sorted(calendar.items())]))

@@ -92,7 +92,7 @@ class HistoryResearchTests(SQLiteResourceTestCase):
         client, requests, _ = client_for(candles())
         engine = self.engine()
         with self.assertRaises(DataError):
-            forward_step(engine, client, INST, second, evidence, clock=lambda:NOW)
+            forward_step(engine, client, INST, second, evidence, clock=lambda:NOW,max_complete_age_hours=168)
         self.assertFalse(requests)
         self.assertEqual(engine.summary()['fills'], 0)
 
@@ -206,14 +206,14 @@ class HistoryResearchTests(SQLiteResourceTestCase):
         evidence, _ = evidence_file(self.root,path,kind='verified')
         engine=self.engine()
         client, requests, _=client_for(candles(),quote_time=NOW)
-        self.assertEqual(forward_step(engine,client,INST,path,evidence,clock=lambda:NOW),'NO_FILL')
+        self.assertEqual(forward_step(engine,client,INST,path,evidence,clock=lambda:NOW,max_complete_age_hours=168),'NO_FILL')
         later=NOW+timedelta(seconds=1)
         refreshed=refresh_forward(client,INST,path,self.root/'refresh',clock=lambda:later)
         client2, requests2, _=client_for(candles(),quote_time=later)
-        self.assertEqual(forward_step(engine,client2,INST,refreshed,evidence,clock=lambda:later),'PAPER_FILL')
+        self.assertEqual(forward_step(engine,client2,INST,refreshed,evidence,clock=lambda:later,max_complete_age_hours=168),'NO_FILL')
         before=engine.summary()
         restored=self.engine()
-        self.assertEqual(forward_step(restored,client2,INST,refreshed,evidence,clock=lambda:later),'NO_FILL')
+        self.assertEqual(forward_step(restored,client2,INST,refreshed,evidence,clock=lambda:later,max_complete_age_hours=168),'NO_FILL')
         self.assertEqual(restored.summary(),before)
         schedules=[p for m,p in requests+requests2 if m.endswith('/TradingSchedules')]
         self.assertTrue(schedules)
@@ -233,7 +233,7 @@ class HistoryResearchTests(SQLiteResourceTestCase):
             evidence.write_text(json.dumps(data))
             client,requests,_=client_for(candles())
             with self.subTest(problem=problem), self.assertRaises(DataError):
-                forward_step(self.engine(problem+'.db'),client,INST,path,evidence,clock=lambda:NOW)
+                forward_step(self.engine(problem+'.db'),client,INST,path,evidence,clock=lambda:NOW,max_complete_age_hours=168)
             self.assertFalse(any(m.endswith('/GetLastPrices') for m,_ in requests))
 
     def test_forward_persists_gate_before_virtual_fill_and_stops_on_audit_failure(self):
@@ -242,7 +242,7 @@ class HistoryResearchTests(SQLiteResourceTestCase):
         client,_,_=client_for(candles(),quote_time=NOW)
         engine=self.engine()
         checks=[]
-        forward_step(engine,client,INST,path,evidence,clock=lambda:NOW,audit=checks.append)
+        forward_step(engine,client,INST,path,evidence,clock=lambda:NOW,audit=checks.append,max_complete_age_hours=168)
         self.assertTrue(checks[0]['status_gate_passed'])
         self.assertEqual(checks[0]['calendar'][0]['day'],NOW.date().isoformat())
         later=NOW+timedelta(seconds=1)
@@ -250,20 +250,20 @@ class HistoryResearchTests(SQLiteResourceTestCase):
         def fail_audit(payload):
             raise OSError('injected audit storage failure')
         with self.assertRaises(OSError):
-            forward_step(engine,client,INST,path,evidence,clock=lambda:later,audit=fail_audit)
+            forward_step(engine,client,INST,path,evidence,clock=lambda:later,audit=fail_audit,max_complete_age_hours=168)
         self.assertEqual(engine.summary()['fills'],0)
 
     def test_forward_blocks_closed_current_market_and_unavailable_status(self):
         path,_,_,_=snapshot(self.root)
         evidence,_=evidence_file(self.root,path,kind='verified')
         client,requests,_=client_for(candles(),trading=False)
-        self.assertEqual(forward_step(self.engine(),client,INST,path,evidence,clock=lambda:NOW),'WAIT_MARKET')
+        self.assertEqual(forward_step(self.engine(),client,INST,path,evidence,clock=lambda:NOW,max_complete_age_hours=168),'WAIT_MARKET')
         self.assertFalse(any(m.endswith('/GetLastPrices') for m,_ in requests))
         # Same current day after official close: missing complete day cannot be ignored.
         after_close=NOW.replace(hour=19)
         client,requests,_=client_for(candles(),quote_time=after_close)
         with self.assertRaises(DataError):
-            forward_step(self.engine('closed.db'),client,INST,path,evidence,clock=lambda:after_close)
+            forward_step(self.engine('closed.db'),client,INST,path,evidence,clock=lambda:after_close,max_complete_age_hours=168)
         self.assertFalse(any(m.endswith('/GetLastPrices') for m,_ in requests))
 
     def test_sqlite_rejects_mode_mixing_and_accepted_evidence_revision(self):
@@ -273,14 +273,14 @@ class HistoryResearchTests(SQLiteResourceTestCase):
         forward_evidence,_=evidence_file(self.root,path,kind='verified',name='forward.json')
         client,_,_=client_for(candles())
         with self.assertRaises(DataError):
-            forward_step(self.engine(),client,INST,path,forward_evidence,clock=lambda:NOW)
+            forward_step(self.engine(),client,INST,path,forward_evidence,clock=lambda:NOW,max_complete_age_hours=168)
         engine=self.engine('forward.db')
-        forward_step(engine,client,INST,path,forward_evidence,clock=lambda:NOW)
+        forward_step(engine,client,INST,path,forward_evidence,clock=lambda:NOW,max_complete_age_hours=168)
         before=engine.summary()
         data=json.loads(forward_evidence.read_text());data['source']='CHANGED PROVENANCE'
         forward_evidence.write_text(json.dumps(data))
         with self.assertRaises(DataError):
-            forward_step(self.engine('forward.db'),client,INST,path,forward_evidence,clock=lambda:NOW)
+            forward_step(self.engine('forward.db'),client,INST,path,forward_evidence,clock=lambda:NOW,max_complete_age_hours=168)
         self.assertEqual(self.engine('forward.db').summary(),before)
 
     def test_historical_replay_cli_uses_snapshot_and_assumptions(self):
@@ -302,7 +302,7 @@ class HistoryResearchTests(SQLiteResourceTestCase):
     def test_forward_cli_mock_api_and_sqlite_restart(self):
         path,_,_,_=snapshot(self.root)
         evidence,_=evidence_file(self.root,path,kind='verified')
-        args=['paper','--history',str(path),'--evidence',str(evidence),'--db',str(self.root/'cli.db'),
+        args=['paper','--max-complete-age-hours','168','--history',str(path),'--evidence',str(evidence),'--db',str(self.root/'cli.db'),
               '--output',str(self.root/'logs'),'--once','--commission-rub','.5','--slippage-ticks','1',
               '--funding-per-contract-day-rub','2']
         client,requests,_=client_for(candles(),quote_time=NOW)

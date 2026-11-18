@@ -1,0 +1,35 @@
+{
+  "checked_date": "2026-11-17",
+  "official_commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": [
+    {
+      "path": "src/docs/contracts/instruments.proto",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto",
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3"
+    },
+    {
+      "path": "src/docs/contracts/common.proto",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/common.proto",
+      "sha256": "2eb887eb9001aa6ece1ed2d61ea7384d342dc88e2fabec37390d338f386d94f9"
+    },
+    {
+      "path": "src/docs/faq_orders.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/faq_orders.md",
+      "sha256": "4c00bdaaca437d85ee70c8170bc03c2b3972847c6d849ec54ce7c1f2e70f3f79"
+    },
+    {
+      "path": "src/docs/head-instruments.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-instruments.md",
+      "sha256": "9ddc527f4d8b7de48523013789e164290a9c5cf6055ac89bdac7a53620cd1e3d"
+    },
+    {
+      "path": "src/docs/head-sandbox.md",
+      "url": "https://github.com/RussianInvestments/investAPI/blob/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/head-sandbox.md",
+      "sha256": "7d4b16ffdd035b59791d16aa8c5ac3800bd40ae88bc270c28a35f3afe6252454"
+    }
+  ],
+  "actual_broker_tariff_verified": false,
+  "actual_exchange_fee_verified": false,
+  "actual_funding_verified": false,
+  "actual_gldrubf_numeric_contract_spec_verified": false
+}

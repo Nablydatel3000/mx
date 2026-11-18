@@ -1,0 +1,64 @@
+{
+  "synthetic_only": true,
+  "no_network": true,
+  "no_real_csv_or_sqlite": true,
+  "bootstrap": {
+    "last_cross": {
+      "day": "2026-09-25",
+      "target": -1,
+      "known_at": "2026-11-17T05:59:57.000000Z"
+    },
+    "last_complete": "2026-11-16",
+    "signal_age_days": 53,
+    "position": -1,
+    "fills": 1,
+    "restart_duplicate_fills": 0
+  },
+  "stale_history": {
+    "requested_to": "2026-11-17T05:59:57.000000Z",
+    "received_at": "2026-11-17T05:59:57.000000Z",
+    "last_complete": "2026-09-25",
+    "position": -1,
+    "accepted": true,
+    "event": "PAPER_FILL"
+  },
+  "cross_phase": {
+    "event": "PAPER_FILL",
+    "current": "2026-11-17T06:00:00.000000Z",
+    "quote": "2026-11-17T05:59:58.000000Z",
+    "same_individual_window": false,
+    "fill": {
+      "time": "2026-11-17T05:59:58.000000Z",
+      "signal_day": "2026-09-25",
+      "kind": "OPEN"
+    },
+    "quote_age_seconds": 2.0
+  },
+  "guards": {
+    "outage_pending_retained": true,
+    "restart_fill_once": true,
+    "stale_quote_blocked": true,
+    "closed_status_blocked": true,
+    "future_quote_blocked": true,
+    "revision_atomic_stop": true,
+    "incomplete_candle_excluded": true,
+    "completion_updates_target": true
+  },
+  "logical_corruption": {
+    "restart_accepted": true,
+    "quote_price": "-1",
+    "fill_signal_day": "2099-01-01",
+    "equity": "10098.5"
+  },
+  "lock_alias": {
+    "same_physical_db": true,
+    "two_runner_locks_acquired": true
+  },
+  "crashes": {
+    "uncommitted_transaction_rolled_back": true,
+    "committed_fill_retained": true,
+    "duplicate_after_crash": false,
+    "export_rebuilt_from_sqlite": true,
+    "power_failure_tested": false
+  }
+}

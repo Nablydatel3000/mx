@@ -3,10 +3,9 @@ import argparse
 import csv
 import json
 import logging
-import os
+from logging.handlers import RotatingFileHandler
 import sqlite3
 import time
-from contextlib import contextmanager
 from datetime import date, datetime, timedelta, time as daytime
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from .strategy import DailyClose, crossover
 from .history import download_daily, load_snapshot, digest, encoded, write_json
 from .research import replay_history, forward_step, refresh_forward, bind_mode, timing_evidence
 from . import autonomous
+from .locking import runner_lock
 
 
 def read_daily_closes(path):
@@ -29,39 +29,12 @@ def read_daily_closes(path):
     return bars
 
 
-@contextmanager
-def runner_lock(path):
-    path = Path(str(path) + '.runner.lock')
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open('a+b') as f:
-        if f.seek(0, os.SEEK_END) == 0:
-            f.write(b'0')
-            f.flush()
-        f.seek(0)
-        try:
-            if os.name == 'nt':
-                import msvcrt
-                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            raise DataError('Another runner holds this database lock') from None
-        try:
-            yield
-        finally:
-            f.seek(0)
-            if os.name == 'nt':
-                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-
 def market_open(calendar, timestamp):
     return any(s.contains(timestamp) for s in calendar.values())
 
 
-def paper_step(engine, client, instrument, clock=lambda: datetime.now(UTC), max_age=120):
+def paper_step(engine, client, instrument, clock=lambda: datetime.now(UTC), max_age=120,
+               max_complete_age_hours=None):
     """Legacy calendar-backed regression harness; CLI Forward uses forward_step."""
     if client.point_value(instrument) != engine.costs.point_value_rub:
         raise DataError('Monetary tick specification changed; stop before revaluing persistent positions')
@@ -75,13 +48,23 @@ def paper_step(engine, client, instrument, clock=lambda: datetime.now(UTC), max_
     observed_at = instant(clock())
     if observed_at < now:
         raise DataError('Local clock moved backwards during fetch')
-    engine.process_bars(bars, observed_at, coverage_start=start.date(), coverage_end=now.date())
+    rows=[dict(time=iso(b.time),is_complete=True) for b in bars]
+    age=autonomous.history_age(rows,observed_at,max_complete_age_hours)
+    if age is None or not age['fresh']:
+        return 'WAIT_COMPLETE_HISTORY'
+    engine.process_bars(bars, observed_at, coverage_start=start.date(), coverage_end=now.date(),forward=True)
+    if engine.summary()['migration_review_required']:
+        return 'WAIT_MIGRATION_REVIEW'
     quote = client.quote(instrument, clock)
     current = instant(clock())
-    if quote is None or not market_open(calendar, quote.time):
-        return 'WAIT_MARKET'
-    if quote.time > current:
+    if current < observed_at:
+        raise DataError('Local clock moved backwards during quote fetch')
+    if quote is not None and quote.time > current:
         raise DataError('Future quote')
+    if not autonomous.history_age(rows,current,max_complete_age_hours)['fresh']:
+        return 'WAIT_COMPLETE_HISTORY'
+    if quote is None or not autonomous.same_window(calendar,current,quote.time):
+        return 'WAIT_MARKET'
     if (current - quote.time).total_seconds() > max_age:
         return 'WAIT_FRESH_PRICE'
     return 'PAPER_FILL' if engine.observe(quote) else 'NO_FILL'
@@ -164,9 +147,10 @@ def fetch(args):
     print('Read-only export complete. UID=' + instrument.uid)
 
 
-def run_paper(args):
+def run_paper(args, observer=None):
     if args.poll_seconds < 60 or args.max_quote_age < 1:
         raise DataError('Forward polling must be >=60s and quote age positive')
+    autonomous.history_age([],datetime.now(UTC),args.max_complete_age_hours)
     protect_research_inputs(args)
     if args.evidence:
         if not args.history:
@@ -176,10 +160,14 @@ def run_paper(args):
     args.output.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger('paper')
     logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(args.output / 'operations.log', encoding='utf-8')
+    handler = RotatingFileHandler(args.output / 'operations.log', maxBytes=5*1024*1024,backupCount=5,encoding='utf-8')
     logger.addHandler(handler)
+    def emit(status, **details):
+        if observer is not None:
+            observer(dict(status=status,**details))
     try:
-        with runner_lock(args.db):
+        emit('STARTING')
+        with runner_lock(args.db) as check_lock:
             client = ReadOnlyClient()
             while True:
                 try:
@@ -187,6 +175,7 @@ def run_paper(args):
                     costs = costs_from(args, client.point_value(instrument), instrument.tick)
                     break
                 except APIError as exc:
+                    emit('API_RETRY',category=exc.category or 'api_error')
                     logger.warning('API_STARTUP_UNAVAILABLE: %s',exc)
                     if args.once or not exc.retryable:
                         raise
@@ -198,6 +187,7 @@ def run_paper(args):
             engine = PaperEngine(args.db, instrument.uid, costs, funding_rates=rates)
             start = autonomous.source_start(engine,datetime.now(UTC),
                 requested=initial['from'] if initial else None,history_days=args.history_days) if not args.evidence else None
+            emit('READY')
             previous = args.history
             checks = args.output / 'forward_checks'
             checks.mkdir(exist_ok=True)
@@ -205,31 +195,41 @@ def run_paper(args):
                 path = checks / (digest(encoded(payload)) + '.json')
                 if not path.exists():
                     write_json(path, payload)
+                emit('CHECKED',event=payload.get('event'),complete_history_age=payload.get('complete_history_age'))
             while True:
                 try:
+                    check_lock()
+                    emit('FETCHING')
                     if args.funding_csv:
                         engine.rates = {date.fromisoformat(k): v for k, v in funding_csv(args.funding_csv).items()}
                     refresh = args.output / 'history' / datetime.now(UTC).strftime('%Y%m%dT%H%M%S_%fZ')
                     if args.evidence:
                         snapshot = refresh_forward(client, instrument, previous, refresh)
+                        check_lock()
                         event = forward_step(engine, client, instrument, snapshot, args.evidence,
-                                             max_age=args.max_quote_age, audit=audit)
+                                             max_age=args.max_quote_age, audit=audit,
+                                             max_complete_age_hours=args.max_complete_age_hours)
                     else:
                         snapshot = download_daily(client,instrument,start,datetime.now(UTC),refresh,
                                                   previous=previous,make_template=False)
-                        event = autonomous.step(engine,client,instrument,snapshot,max_age=args.max_quote_age,audit=audit)
+                        check_lock()
+                        event = autonomous.step(engine,client,instrument,snapshot,max_age=args.max_quote_age,audit=audit,
+                                                max_complete_age_hours=args.max_complete_age_hours)
                     previous = snapshot
                     engine.export(args.output)
+                    emit('RUNNING',event=event,summary=engine.summary())
                     message = json.dumps(dict(time=iso(datetime.now(UTC)), event=event,
                         mode='legacy-verified' if args.evidence else autonomous.MODE, **engine.summary()), ensure_ascii=False)
                     logger.info(message)
                     print(message, flush=True)
                 except APIError as exc:
+                    emit('API_RETRY',category=exc.category or 'api_error')
                     logger.warning('API_UNAVAILABLE: %s', exc)
                     print('API unavailable: no fill; persistent state retained.', flush=True)
                     if args.once or not exc.retryable:
                         raise
                 except DataError as exc:
+                    emit('STOP',category='data_error')
                     logger.error('DATA_STOP: %s', exc)
                     raise
                 if args.once:
@@ -297,6 +297,8 @@ def parser():
             c.add_argument('--evidence', type=Path, help='Optional legacy verified mode; autonomous mode needs no evidence')
             c.add_argument('--poll-seconds', type=int, default=60)
             c.add_argument('--max-quote-age', type=int, default=120)
+            c.add_argument('--max-complete-age-hours',type=int,required=True,
+                           help='Explicit maximum UTC age of latest completed provider timestamp; no guessed default')
             c.add_argument('--once', action='store_true')
     return p
 

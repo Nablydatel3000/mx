@@ -1,0 +1,11 @@
+[Unit]
+Description=GLDRUBF heartbeat monitor every minute (independent of runner)
+
+[Timer]
+OnBootSec=30
+OnUnitInactiveSec=60
+AccuracySec=5
+Unit=gldrubf-health.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,38 @@
+{
+  "issue_url": "https://github.com/Nablydatel3000/mx/issues/2",
+  "issue_html_sha256": "3c54162891637a259c01eb5c7371287ac8fba80569ca5e1ef999cbe70e840836",
+  "issue_http_status": 200,
+  "economics": [
+    {
+      "name": "moex_iss",
+      "url": "https://iss.moex.com/iss/engines/futures/markets/forts/securities/GLDRUBF.json?iss.meta=off",
+      "error": "URLError"
+    },
+    {
+      "name": "moex_contract",
+      "url": "https://www.moex.com/ru/contract.aspx?code=GLDRUBF",
+      "error": "URLError"
+    },
+    {
+      "name": "broker_tariffs",
+      "url": "https://www.tbank.ru/invest/tariffs/",
+      "error": "URLError",
+      "transport_detail": "OSError: Tunnel connection failed: 403 Forbidden (proxy)"
+    },
+    {
+      "name": "broker_investor_pdf",
+      "url": "https://cdn.tbank.ru/static/documents/brokerage-tariffs-investor.pdf",
+      "error": "URLError",
+      "candidate_url_not_verified": true
+    },
+    {
+      "name": "api_futures",
+      "url": "https://developer.tbank.ru/invest/services/instruments/methods/",
+      "error": "URLError"
+    }
+  ],
+  "real_csv_available": false,
+  "real_sqlite_available": false,
+  "authorized_api_run": false,
+  "vps_run": false
+}

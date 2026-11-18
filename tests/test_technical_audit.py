@@ -141,7 +141,7 @@ class FinancingChronologyAudit(SQLiteResourceTestCase):
         client.quote.return_value = None
         before = self.engine.latest_day()
         with self.assertRaises(DataError):
-            paper_step(self.engine, client, Instrument('audit-uid','fixture','GLDRUBF','MOEX',D(1)), clock=lambda:now)
+            paper_step(self.engine, client, Instrument('audit-uid','fixture','GLDRUBF','MOEX',D(1)), clock=lambda:now,max_complete_age_hours=168)
         self.assertEqual(self.engine.latest_day(), before)
         client.quote.assert_not_called()
 

@@ -1,0 +1,18 @@
+{
+  "costs": {
+    "commission_rub": "REQUIRED_RUB_PER_SIDE",
+    "slippage_ticks": null,
+    "initial_cash_rub": "REQUIRED_SAME_AS_EXISTING_DB",
+    "confirmation_cost_rub": "REQUIRED_EXPLICIT_SCENARIO"
+  },
+  "max_complete_age_hours": null,
+  "alert_channel": "REQUIRED_telegram_OR_webhook",
+  "history_retention_days": null,
+  "poll_seconds": 60,
+  "max_quote_age": 120,
+  "history_days": 730,
+  "min_free_mb": 512,
+  "heartbeat_max_age": 600,
+  "unhealthy_grace": 300,
+  "backup_keep": 7
+}

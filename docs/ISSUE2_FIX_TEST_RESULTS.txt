@@ -1,0 +1,100 @@
+Issue #2 fix verification: 2026-11-18
+Branch: fix/issue-2-forward-paper-vps
+Baseline: 1f17cf3e019cf980ec3a88c4b7b2d831be6a8708
+Offline Linux checks only; no real broker API, Windows run, VPS deployment or notification delivery.
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python --version
+Python 3.12.14
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+
+----------------------------------------------------------------------
+Ran 237 tests in 1.438s
+
+OK
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+
+----------------------------------------------------------------------
+Ran 237 tests in 1.384s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src tests
+
+
+exit_code=0
+
+$ /usr/bin/python3.13 -m compileall -q src tests
+
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.cli --help
+usage: cli.py [-h] {signals,fetch,replay,historical-replay,paper} ...
+
+GLDRUBF SMA20/50 READ-ONLY DATA + PAPER. No LIVE mode.
+
+positional arguments:
+  {signals,fetch,replay,historical-replay,paper}
+    signals             Original day,close format: signals only, no fills
+    fetch               Download actual candles; token only from
+                        T_INVEST_TOKEN
+
+options:
+  -h, --help            show this help message and exit
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.vps --help
+usage: vps.py [-h] [--config CONFIG] [--state STATE] [--output OUTPUT]
+              [--backup BACKUP] [--authoritative-ledger]
+              {run,check,backup,restore,validate-config,configure}
+
+GLDRUBF Linux PAPER operations. No LIVE/orders.
+
+positional arguments:
+  {run,check,backup,restore,validate-config,configure}
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --state STATE
+  --output OUTPUT
+  --backup BACKUP
+  --authoritative-ledger
+                        Operator confirms source is the complete latest ledger
+                        after clean stop/reconciliation; NOT an unreconciled
+                        old backup
+
+exit_code=0
+
+$ bash -n deploy/linux/install.sh
+
+
+exit_code=0
+
+$ systemd-analyze verify deploy/linux/gldrubf-backup.service deploy/linux/gldrubf-health.service deploy/linux/gldrubf-paper.service deploy/linux/gldrubf-backup.timer deploy/linux/gldrubf-health.timer
+
+
+exit_code=0
+
+$ git diff --check
+
+
+exit_code=0
+
+strategy.py byte-identical to baseline SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+api.py byte-identical to baseline SHA256=22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad
+Costs class byte-identical to baseline.
+
+RESULT: ALL AVAILABLE CHECKS PASSED

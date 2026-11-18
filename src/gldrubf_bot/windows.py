@@ -41,6 +41,7 @@ def run():
             history = ask('Initial GetCandles snapshot folder (blank: automatic 730-day history)')
             if history:
                 args += ['--history', history]
+            args += ['--max-complete-age-hours',ask('Maximum completed candle age in UTC hours (explicit policy, no default)')]
             token()
         elif mode == 'historical-replay':
             args += ['--history', ask('GetCandles snapshot folder'),

@@ -83,7 +83,7 @@ class SQLiteLifecycleTests(SQLiteResourceTestCase):
                 with self.assertRaises(DataError):
                     with runner_lock(path):
                         self.fail('Second runner unexpectedly acquired the lock')
-            Path(str(path) + '.runner.lock').unlink()
+            path.unlink()  # Lock is on the actual database inode, no sidecar.
 
     def test_export_replaces_closed_files_in_unicode_directory(self):
         with TemporaryDirectory(prefix='mx export пробел ') as directory:

@@ -1,0 +1,9 @@
+trade_id,direction,signal_entry_day,signal_exit_day,zero_lag_signal_close_reference_points,main_next_open_points,execution_model_difference_points
+1,SHORT,2025-02-21,2025-04-16,-571.3,-499.7,71.6
+2,LONG,2025-04-16,2025-05-28,-615.2,-595.4,19.8
+3,SHORT,2025-05-28,2025-08-04,-227.2,-258,-30.8
+4,LONG,2025-08-04,2025-12-02,1948,1943,-5
+5,SHORT,2025-12-02,2025-12-16,-360,-424,-64
+6,LONG,2025-12-16,2026-03-28,905,851,-54
+7,SHORT,2026-03-28,2026-07-14,1632.6,1675.2,42.6
+8,LONG,2026-07-14,2026-09-25,1434.4,1474.3,39.9

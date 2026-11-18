@@ -1,0 +1,148 @@
+{
+  "source_archive_sha256": "498e4aacb2da1d041a93efa34de807945f171fd44791541a14735a279e05ee7d",
+  "signal_audit_commit": "d68f4cc",
+  "source_script_sha256": "511a8fd935b3897c6e5180d9859d90ac8d99d8eb66d1470c7846de9f0d503c4e",
+  "assumptions": [
+    "Initial position flat; first 50 completed observations warm up unchanged SMA20/50.",
+    "After each completed candle, signal becomes known before the next available DAY open (UNVERIFIED assumption).",
+    "Execute both reversal legs at that next DAY open with no costs, spread or slippage.",
+    "DAY labels identify row order, not verified publication/open/fill timestamps.",
+    "Mark daily on complete DAY closes; exclude unfinished 2026-11-18 candle.",
+    "No forward filling missing dates; no forced liquidation at the last mark.",
+    "Point size is one quoted price unit; no historical RUB point value assumed."
+  ],
+  "quality": {
+    "uid": "b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6",
+    "exchange": "forts_futures_weekend",
+    "request_from": "2024-11-18T00:00:00.000000Z",
+    "request_to": "2026-11-18T08:58:24.435910Z",
+    "captured_at": "2026-11-18T08:58:25.082806Z",
+    "total_count": 613,
+    "complete_count": 612,
+    "incomplete_count": 1,
+    "complete_first": "2024-11-18T00:00:00.000000Z",
+    "complete_last": "2026-11-17T00:00:00.000000Z",
+    "excluded_incomplete": [
+      "2026-11-18T00:00:00.000000Z"
+    ],
+    "raw_files": 9,
+    "raw_in_range_records": 619,
+    "identical_raw_duplicates": 6,
+    "raw_duplicate_times": [
+      "2025-08-15T00:00:00+00:00",
+      "2025-11-13T00:00:00+00:00",
+      "2026-02-11T00:00:00+00:00",
+      "2026-05-12T00:00:00+00:00",
+      "2026-08-10T00:00:00+00:00",
+      "2026-11-08T00:00:00+00:00"
+    ],
+    "normalized_duplicates": 0,
+    "conflicting_raw_duplicates": 0,
+    "csv_json_mismatches": 0,
+    "hashes_match": true,
+    "all_raw_normalized_values_match": true,
+    "current_declared_tick": "0.1",
+    "historical_tick_verified": false,
+    "first_daily_current_metadata": "2023-07-11T07:00:00.000000Z",
+    "complete_rows_by_year": {
+      "2024": 32,
+      "2025": 284,
+      "2026": 296
+    },
+    "completed_weekend_labels": {
+      "Saturday": 52,
+      "Sunday": 50
+    },
+    "all_provider_times_utc_midnight": true,
+    "gap_count": 60,
+    "absent_calendar_dates": 118,
+    "absent_weekday_dates": [
+      "2024-12-31",
+      "2025-01-01",
+      "2025-01-02",
+      "2025-01-07",
+      "2025-05-01",
+      "2025-05-09",
+      "2025-06-12",
+      "2025-11-04",
+      "2025-12-31",
+      "2026-01-01",
+      "2026-01-02",
+      "2026-01-07"
+    ],
+    "max_unobserved_calendar_dates": 5,
+    "coverage_verified": false,
+    "trading_dates_verified": false,
+    "validation_claimed_changes": [
+      {
+        "kind": "incomplete_changed",
+        "time": "2026-11-18T00:00:00.000000Z"
+      }
+    ],
+    "validation_claimed_comparison": {
+      "from": "2024-11-18T00:00:00.000000Z",
+      "previous_candles_sha256": "b1e07d2772b994e744eb88748719430922bed8f053bc28c6183481528904a364",
+      "previous_range_fully_covered": true,
+      "to": "2026-11-18T08:58:24.435910Z"
+    },
+    "previous_snapshot_present": false,
+    "revision_comparison_independently_verified": false,
+    "project_load_snapshot_passed": true
+  },
+  "signal_crosscheck": {
+    "method": "Exact fractions from decimal close strings; trailing 20/50 completed observations, no calendar fill",
+    "warmup_observations": 50,
+    "first_eligible_candle": "2025-01-30T00:00:00.000000Z",
+    "eligible_prefixes": 562,
+    "strategy_direction_mismatches": 0,
+    "max_float_sma_absolute_difference": 1.8189894035458565e-12,
+    "incomplete_used": 0,
+    "future_prefix_invariance_checks": 562,
+    "signal_count": 9,
+    "long_signals": 4,
+    "short_signals": 5,
+    "signals_by_year": {
+      "2025": 6,
+      "2026": 3
+    },
+    "historical_signal_availability_verified": false,
+    "performance_calculated": false
+  },
+  "summary": {
+    "model": "NEXT_AVAILABLE_DAY_OPEN",
+    "units": "price_points_per_one_contract",
+    "first_complete": "2024-11-18",
+    "last_complete": "2026-11-17",
+    "completed_candles": 612,
+    "signal_count": 9,
+    "closed_trades": 8,
+    "fill_legs": 17,
+    "realized_gross_points": "4166.4",
+    "open_unrealized_points": "1305.5",
+    "total_gross_points": "5471.9",
+    "max_daily_mark_drawdown_points": "2097.2",
+    "drawdown_peak_provider_day": "2026-03-01",
+    "drawdown_trough_provider_day": "2026-04-01",
+    "drawdown_peak_cumulative_points": "2744.4",
+    "drawdown_trough_cumulative_points": "647.2",
+    "drawdown_recovery_provider_day": "2026-06-09",
+    "pending_unexecuted": 0,
+    "profit_rub": null,
+    "return_percent": null,
+    "drawdown_percent": null,
+    "net_result": null,
+    "costs": "EXCLUDED: commissions, spread, slippage, funding; gross only",
+    "historical_publication_and_execution_verified": false
+  },
+  "reconciliation": {
+    "user_reported_previous_points": "4220",
+    "previous_ledger_available": false,
+    "zero_lag_close_reference_closed_points": "4146.3",
+    "unexplained_close_reference_minus_reported_points": "-73.7",
+    "next_open_minus_close_reference_closed_points": "20.1",
+    "main_closed_minus_reported_points": "-53.6",
+    "open_position_added_points": "1305.5",
+    "main_total_minus_reported_points": "1251.9",
+    "note": "Previous +4220 period/prices/costs/open-position convention unknown; residual not assigned a fabricated cause."
+  }
+}

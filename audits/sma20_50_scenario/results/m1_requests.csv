@@ -1,0 +1,10 @@
+signal_provider_day,direction,modeled_entry_provider_day,uid,request_from_utc,request_to_utc_exclusive,interval,scope
+2025-02-21,SHORT,2025-02-24,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-02-21T00:00:00Z,2025-02-26T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2025-04-16,LONG,2025-04-17,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-04-16T00:00:00Z,2025-04-19T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2025-05-28,SHORT,2025-05-29,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-05-28T00:00:00Z,2025-05-31T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2025-08-04,LONG,2025-08-05,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-08-04T00:00:00Z,2025-08-07T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2025-12-02,SHORT,2025-12-03,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-12-02T00:00:00Z,2025-12-05T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2025-12-16,LONG,2025-12-17,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2025-12-16T00:00:00Z,2025-12-19T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2026-03-28,SHORT,2026-03-29,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2026-03-28T00:00:00Z,2026-03-31T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2026-07-14,LONG,2026-07-15,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2026-07-14T00:00:00Z,2026-07-17T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping
+2026-09-25,SHORT,2026-09-26,b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6,2026-09-25T00:00:00Z,2026-09-28T00:00:00Z,CANDLE_INTERVAL_1_MIN,initial_candidate_window_not_verified_session_mapping

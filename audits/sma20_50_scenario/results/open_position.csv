@@ -1,0 +1,2 @@
+trade_id,contracts,direction,entry_signal_provider_day,entry_provider_day,entry_model_price,mark_provider_day,mark_day_close,unrealized_points
+9,1,SHORT,2026-09-25,2026-09-26,11574.1,2026-11-17,10268.6,1305.5

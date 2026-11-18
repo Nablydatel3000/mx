@@ -1,0 +1,154 @@
+GLDRUBF first gross-points scenario checks — 2026-11-18
+Baseline signal audit: d68f4ccc614b85a4308749fd9a48daa92eb44f36
+No real API/token, VPS, SQLite, broker orders, parameter optimization or deployment used.
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python --version
+Python 3.12.14
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning audits/sma20_50_scenario/run.py
+{
+  "summary": {
+    "model": "NEXT_AVAILABLE_DAY_OPEN",
+    "units": "price_points_per_one_contract",
+    "first_complete": "2024-11-18",
+    "last_complete": "2026-11-17",
+    "completed_candles": 612,
+    "signal_count": 9,
+    "closed_trades": 8,
+    "fill_legs": 17,
+    "realized_gross_points": "4166.4",
+    "open_unrealized_points": "1305.5",
+    "total_gross_points": "5471.9",
+    "max_daily_mark_drawdown_points": "2097.2",
+    "drawdown_peak_provider_day": "2026-03-01",
+    "drawdown_trough_provider_day": "2026-04-01",
+    "drawdown_peak_cumulative_points": "2744.4",
+    "drawdown_trough_cumulative_points": "647.2",
+    "drawdown_recovery_provider_day": "2026-06-09",
+    "pending_unexecuted": 0,
+    "profit_rub": null,
+    "return_percent": null,
+    "drawdown_percent": null,
+    "net_result": null,
+    "costs": "EXCLUDED: commissions, spread, slippage, funding; gross only",
+    "historical_publication_and_execution_verified": false
+  },
+  "reconciliation": {
+    "user_reported_previous_points": "4220",
+    "previous_ledger_available": false,
+    "zero_lag_close_reference_closed_points": "4146.3",
+    "unexplained_close_reference_minus_reported_points": "-73.7",
+    "next_open_minus_close_reference_closed_points": "20.1",
+    "main_closed_minus_reported_points": "-53.6",
+    "open_position_added_points": "1305.5",
+    "main_total_minus_reported_points": "1251.9",
+    "note": "Previous +4220 period/prices/costs/open-position convention unknown; residual not assigned a fabricated cause."
+  }
+}
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s audits/sma20_50_scenario -p test_*.py -v
+
+test_every_fill_uses_the_raw_backed_next_observation_open (test_scenario.RealScenarioTests.test_every_fill_uses_the_raw_backed_next_observation_open) ... ok
+test_independent_gap_plus_intraday_mark_accounting (test_scenario.RealScenarioTests.test_independent_gap_plus_intraday_mark_accounting) ... ok
+test_reference_bridge_does_not_silently_reproduce_4220 (test_scenario.RealScenarioTests.test_reference_bridge_does_not_silently_reproduce_4220) ... ok
+test_signal_cannot_fill_on_its_own_candle_and_waits_over_real_gap (test_scenario.RealScenarioTests.test_signal_cannot_fill_on_its_own_candle_and_waits_over_real_gap) ... ok
+test_trade_ledger_and_open_position_reconcile (test_scenario.RealScenarioTests.test_trade_ledger_and_open_position_reconcile) ... ok
+test_truncation_at_every_signal_keeps_past_marks_and_leaves_pending (test_scenario.RealScenarioTests.test_truncation_at_every_signal_keeps_past_marks_and_leaves_pending) ... ok
+test_unfinished_candle_excluded_no_final_liquidation_or_rub_conversion (test_scenario.RealScenarioTests.test_unfinished_candle_excluded_no_final_liquidation_or_rub_conversion) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.364s
+
+OK
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning audits/sma20_50_scenario/run.py --output /tmp/mx-points-scenario-313
+{
+  "summary": {
+    "model": "NEXT_AVAILABLE_DAY_OPEN",
+    "units": "price_points_per_one_contract",
+    "first_complete": "2024-11-18",
+    "last_complete": "2026-11-17",
+    "completed_candles": 612,
+    "signal_count": 9,
+    "closed_trades": 8,
+    "fill_legs": 17,
+    "realized_gross_points": "4166.4",
+    "open_unrealized_points": "1305.5",
+    "total_gross_points": "5471.9",
+    "max_daily_mark_drawdown_points": "2097.2",
+    "drawdown_peak_provider_day": "2026-03-01",
+    "drawdown_trough_provider_day": "2026-04-01",
+    "drawdown_peak_cumulative_points": "2744.4",
+    "drawdown_trough_cumulative_points": "647.2",
+    "drawdown_recovery_provider_day": "2026-06-09",
+    "pending_unexecuted": 0,
+    "profit_rub": null,
+    "return_percent": null,
+    "drawdown_percent": null,
+    "net_result": null,
+    "costs": "EXCLUDED: commissions, spread, slippage, funding; gross only",
+    "historical_publication_and_execution_verified": false
+  },
+  "reconciliation": {
+    "user_reported_previous_points": "4220",
+    "previous_ledger_available": false,
+    "zero_lag_close_reference_closed_points": "4146.3",
+    "unexplained_close_reference_minus_reported_points": "-73.7",
+    "next_open_minus_close_reference_closed_points": "20.1",
+    "main_closed_minus_reported_points": "-53.6",
+    "open_position_added_points": "1305.5",
+    "main_total_minus_reported_points": "1251.9",
+    "note": "Previous +4220 period/prices/costs/open-position convention unknown; residual not assigned a fabricated cause."
+  }
+}
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s audits/sma20_50_scenario -p test_*.py -v
+
+test_every_fill_uses_the_raw_backed_next_observation_open (test_scenario.RealScenarioTests.test_every_fill_uses_the_raw_backed_next_observation_open) ... ok
+test_independent_gap_plus_intraday_mark_accounting (test_scenario.RealScenarioTests.test_independent_gap_plus_intraday_mark_accounting) ... ok
+test_reference_bridge_does_not_silently_reproduce_4220 (test_scenario.RealScenarioTests.test_reference_bridge_does_not_silently_reproduce_4220) ... ok
+test_signal_cannot_fill_on_its_own_candle_and_waits_over_real_gap (test_scenario.RealScenarioTests.test_signal_cannot_fill_on_its_own_candle_and_waits_over_real_gap) ... ok
+test_trade_ledger_and_open_position_reconcile (test_scenario.RealScenarioTests.test_trade_ledger_and_open_position_reconcile) ... ok
+test_truncation_at_every_signal_keeps_past_marks_and_leaves_pending (test_scenario.RealScenarioTests.test_truncation_at_every_signal_keeps_past_marks_and_leaves_pending) ... ok
+test_unfinished_candle_excluded_no_final_liquidation_or_rub_conversion (test_scenario.RealScenarioTests.test_unfinished_candle_excluded_no_final_liquidation_or_rub_conversion) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.437s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s tests -q
+
+----------------------------------------------------------------------
+Ran 237 tests in 1.939s
+
+OK
+exit_code=0
+
+Byte-identical Python 3.12/3.13 output: closed_trades.csv SHA256=f5e16c763064373cd67d0d49d58a2e6602727ea0f9740314ba69d5f2859ff6a1
+Byte-identical Python 3.12/3.13 output: daily_marks.csv SHA256=48155d296b25349a5f5048213cd98a4aff941cc12520872d2a6affbef342e377
+Byte-identical Python 3.12/3.13 output: fills.csv SHA256=52d23e329fac1e6184d8fdf2816fd19dadc7583227b879f651cb03e4d116d723
+Byte-identical Python 3.12/3.13 output: m1_requests.csv SHA256=7c70c6410823c9ddba5fb9401a9f7bc216c44abd44d7d693f9c93b46a516a969
+Byte-identical Python 3.12/3.13 output: open_position.csv SHA256=70b697dc08c55888af1c1390704fc3f0231ce7c3ca504d5958865336259261ec
+Byte-identical Python 3.12/3.13 output: reconciliation.csv SHA256=9cd7e8daa47fadbba12d900782677b4df5ceda43aea2fd79b1c9b1b0a4eac314
+Byte-identical Python 3.12/3.13 output: summary.json SHA256=336406810789c692a7645d931e774a57a88e9840df1829cd24896cce17eb8842
+src: unchanged vs d68f4cc
+tests: unchanged vs d68f4cc
+deploy: unchanged vs d68f4cc
+audits/gldrubf_real_history: unchanged vs d68f4cc
+All 8 report trade rows match reproducible CSV values.
+PASS: real-data scenario checks (7 each on Python 3.12/3.13); unchanged baseline regression suite 237 passed on Python 3.12.
+Existing synthetic regression tests are not inputs or market-performance evidence for this calculation.

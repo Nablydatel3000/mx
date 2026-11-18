@@ -1,0 +1,168 @@
+{
+  "schema": 1,
+  "baseline": "3097a1be9994dd6d67dd237db3a3335cfff77b1c",
+  "archive_sha256": "498e4aacb2da1d041a93efa34de807945f171fd44791541a14735a279e05ee7d",
+  "archive_bytes": 61651,
+  "source_files": {
+    "20261118T085824_435878Z/validation.json": {
+      "bytes": 7294,
+      "sha256": "571820e98eceb1c99dc3f81c9367b7fe61bff7202f3b5769906c9f662d654a03"
+    },
+    "20261118T085824_435878Z/raw/0004.json": {
+      "bytes": 35662,
+      "sha256": "c579df1288646f9491b464efb4c0df4f0fbfcd09109f6b75dfde7224cedaea5d"
+    },
+    "20261118T085824_435878Z/raw/0005.json": {
+      "bytes": 37541,
+      "sha256": "20041ecde051407a111533bd3904b22ff394cdc600271fdfca15a52ab909a932"
+    },
+    "20261118T085824_435878Z/raw/0007.json": {
+      "bytes": 38631,
+      "sha256": "54759862168f3f2b359375d1bc638ee66f8d8006b91cb57cac350cb6318cda6c"
+    },
+    "20261118T085824_435878Z/raw/0006.json": {
+      "bytes": 39403,
+      "sha256": "a3d218a4c55400e762751ead5b84c988979bfde1483158eb61d9a20839ff5827"
+    },
+    "20261118T085824_435878Z/raw/0000.json": {
+      "bytes": 27947,
+      "sha256": "c2501b5f66de6397d6d929685f8d032b808be1eb5be22e18f8e904c009df2a3c"
+    },
+    "20261118T085824_435878Z/raw/0003.json": {
+      "bytes": 38406,
+      "sha256": "6902d4e9b52cf8435855833ca3b7c280cc05495cf616706d5b1c9367f58dedb9"
+    },
+    "20261118T085824_435878Z/raw/0001.json": {
+      "bytes": 28332,
+      "sha256": "98123e60ba02cbfa836c9d2695dc509aae5cf906246704e9caa3c4844408ae07"
+    },
+    "20261118T085824_435878Z/raw/0002.json": {
+      "bytes": 28653,
+      "sha256": "4c224b53dacd2352ce86da8a57d3190dec0a1575d69088cda9927322c1c848a0"
+    },
+    "20261118T085824_435878Z/raw/0008.json": {
+      "bytes": 5032,
+      "sha256": "77ddde54a525c41fa005ed3bce6a68e3089fbc2d955ba3a1cfc6582ad6515db6"
+    },
+    "20261118T085824_435878Z/instrument.json": {
+      "bytes": 233,
+      "sha256": "c30737afc2530ac3b08537c092255a39860d72516ebe0fd2ba6f8a794030b821"
+    },
+    "20261118T085824_435878Z/candles.json": {
+      "bytes": 155601,
+      "sha256": "5caffef509174316c25d91a700e6191b5df823933d10c77a897346e80c9ed91b"
+    },
+    "20261118T085824_435878Z/candles.csv": {
+      "bytes": 88246,
+      "sha256": "a00b57ad48e85ffd651c2f8f4495cd0768309b3621bbab1144bb5decc4432a0a"
+    },
+    "20261118T085824_435878Z/manifest.json": {
+      "bytes": 3679,
+      "sha256": "d504d5b26e56767f3500e7889a600991c2c6f1a61d942fae505243c6aa1166ba"
+    }
+  },
+  "quality": {
+    "uid": "b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6",
+    "exchange": "forts_futures_weekend",
+    "request_from": "2024-11-18T00:00:00.000000Z",
+    "request_to": "2026-11-18T08:58:24.435910Z",
+    "captured_at": "2026-11-18T08:58:25.082806Z",
+    "total_count": 613,
+    "complete_count": 612,
+    "incomplete_count": 1,
+    "complete_first": "2024-11-18T00:00:00.000000Z",
+    "complete_last": "2026-11-17T00:00:00.000000Z",
+    "excluded_incomplete": [
+      "2026-11-18T00:00:00.000000Z"
+    ],
+    "raw_files": 9,
+    "raw_in_range_records": 619,
+    "identical_raw_duplicates": 6,
+    "raw_duplicate_times": [
+      "2025-08-15T00:00:00+00:00",
+      "2025-11-13T00:00:00+00:00",
+      "2026-02-11T00:00:00+00:00",
+      "2026-05-12T00:00:00+00:00",
+      "2026-08-10T00:00:00+00:00",
+      "2026-11-08T00:00:00+00:00"
+    ],
+    "normalized_duplicates": 0,
+    "conflicting_raw_duplicates": 0,
+    "csv_json_mismatches": 0,
+    "hashes_match": true,
+    "all_raw_normalized_values_match": true,
+    "current_declared_tick": "0.1",
+    "historical_tick_verified": false,
+    "first_daily_current_metadata": "2023-07-11T07:00:00.000000Z",
+    "complete_rows_by_year": {
+      "2024": 32,
+      "2025": 284,
+      "2026": 296
+    },
+    "completed_weekend_labels": {
+      "Saturday": 52,
+      "Sunday": 50
+    },
+    "all_provider_times_utc_midnight": true,
+    "gap_count": 60,
+    "absent_calendar_dates": 118,
+    "absent_weekday_dates": [
+      "2024-12-31",
+      "2025-01-01",
+      "2025-01-02",
+      "2025-01-07",
+      "2025-05-01",
+      "2025-05-09",
+      "2025-06-12",
+      "2025-11-04",
+      "2025-12-31",
+      "2026-01-01",
+      "2026-01-02",
+      "2026-01-07"
+    ],
+    "max_unobserved_calendar_dates": 5,
+    "coverage_verified": false,
+    "trading_dates_verified": false,
+    "validation_claimed_changes": [
+      {
+        "kind": "incomplete_changed",
+        "time": "2026-11-18T00:00:00.000000Z"
+      }
+    ],
+    "validation_claimed_comparison": {
+      "from": "2024-11-18T00:00:00.000000Z",
+      "previous_candles_sha256": "b1e07d2772b994e744eb88748719430922bed8f053bc28c6183481528904a364",
+      "previous_range_fully_covered": true,
+      "to": "2026-11-18T08:58:24.435910Z"
+    },
+    "previous_snapshot_present": false,
+    "revision_comparison_independently_verified": false,
+    "project_load_snapshot_passed": true
+  },
+  "calculation": {
+    "method": "Exact fractions from decimal close strings; trailing 20/50 completed observations, no calendar fill",
+    "warmup_observations": 50,
+    "first_eligible_candle": "2025-01-30T00:00:00.000000Z",
+    "eligible_prefixes": 562,
+    "strategy_direction_mismatches": 0,
+    "max_float_sma_absolute_difference": 1.8189894035458565e-12,
+    "incomplete_used": 0,
+    "future_prefix_invariance_checks": 562,
+    "signal_count": 9,
+    "long_signals": 4,
+    "short_signals": 5,
+    "signals_by_year": {
+      "2025": 6,
+      "2026": 3
+    },
+    "historical_signal_availability_verified": false,
+    "performance_calculated": false
+  },
+  "source_sha256": {
+    "strategy.py": "87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313",
+    "engine.py": "ce8cbce68ef80e11cd335e42e5adc8ef3c3e8e679e8ada30d80d5f0fbcbb79cc",
+    "history.py": "3b4599fdf6fa7d1d960fc43d85244b9a3546b1b8fe01719a8e6aca0631e7e2f3",
+    "research.py": "2ea0966355bf917da38f4588b87b56aa037f71fc6595a04c473e0dff92e1f931",
+    "api.py": "22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad"
+  }
+}

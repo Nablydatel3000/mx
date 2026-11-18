@@ -1,0 +1,56 @@
+[
+  {
+    "name": "moex_contract",
+    "url": "https://www.moex.com/ru/contract.aspx?code=GLDRUBF",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "moex_iss_contract",
+    "url": "https://iss.moex.com/iss/engines/futures/markets/forts/securities/GLDRUBF.json?iss.meta=off",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "moex_iss_description",
+    "url": "https://iss.moex.com/iss/securities/GLDRUBF.json?iss.meta=off",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "moex_new",
+    "url": "https://www.moex.com/ru/derivatives/contracts/GLDRUBF/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "tbank_future",
+    "url": "https://www.tbank.ru/invest/futures/GLDRUBF/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "tbank_tariffs",
+    "url": "https://www.tbank.ru/invest/tariffs/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "tbank_futures_help",
+    "url": "https://www.tbank.ru/invest/help/brokerage/trading/futures/about/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "tbank_protocol",
+    "url": "https://developer.tbank.ru/invest/services/instruments/methods/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  },
+  {
+    "name": "moex_alt",
+    "url": "https://fs.moex.com/files/",
+    "error": "URLError",
+    "reason": "Tunnel connection failed: 403 Forbidden"
+  }
+]

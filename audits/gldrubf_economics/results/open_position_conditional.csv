@@ -1,0 +1,4 @@
+scenario,direction,entry_provider_day,mark_provider_day,conditional_unrealized_gross_rub,entry_commission_rub,carry_calendar_days,modeled_adverse_carry_rub,conditional_open_contribution_rub
+CONDITIONAL_GROSS_Q1_GO1400,SHORT,2026-09-26,2026-11-17,1305.5,0,52,0,1305.5
+ILLUSTRATIVE_TOTAL_FEE5,SHORT,2026-09-26,2026-11-17,1305.5,5,52,0,1300.5
+ILLUSTRATIVE_FEE5_CARRY1,SHORT,2026-09-26,2026-11-17,1305.5,5,52,52,1248.5

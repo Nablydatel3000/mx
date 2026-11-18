@@ -1,0 +1,308 @@
+GLDRUBF one-contract economics checks — 2026-11-18
+Baseline frozen scenario: 531f5276b1e90ae54e2721b22e1751f6920f92af
+No authorized broker requests, real tokens, accounts/orders, VPS/SQLite/service access. Capture tested with mocks only.
+No SMA/candle audit rerun; existing fixed trade/mark CSVs used.
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python --version
+Python 3.12.14
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning audits/gldrubf_economics/calculate.py
+[
+  {
+    "scenario": "CONDITIONAL_GROSS_Q1_GO1400",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "0",
+    "assumed_adverse_carry_per_calendar_day_rub": "0",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "0",
+    "closed_adverse_carry_rub": "0",
+    "closed_conditional_net_rub": "4166.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1305.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "0",
+    "total_adverse_carry_rub": "0",
+    "total_conditional_net_rub": "5471.9",
+    "counterfactual_final_equity_rub": "15471.9",
+    "feasible_scenario_final_equity_rub": "15471.9",
+    "daily_max_drawdown_rub": "2097.2",
+    "daily_max_drawdown_percent": "17.23820237795061776286440251",
+    "minimum_equity_rub": "8480.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8533.9",
+    "minimum_open_equity_rub": "8531.9",
+    "minimum_free_above_assumed_margin_rub": "7080.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "2919.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  },
+  {
+    "scenario": "ILLUSTRATIVE_TOTAL_FEE5",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "5",
+    "assumed_adverse_carry_per_calendar_day_rub": "0",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "80",
+    "closed_adverse_carry_rub": "0",
+    "closed_conditional_net_rub": "4086.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1300.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "85",
+    "total_adverse_carry_rub": "0",
+    "total_conditional_net_rub": "5386.9",
+    "counterfactual_final_equity_rub": "15386.9",
+    "feasible_scenario_final_equity_rub": "15386.9",
+    "daily_max_drawdown_rub": "2107.2",
+    "daily_max_drawdown_percent": "17.44061942094232709772568501",
+    "minimum_equity_rub": "8455.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8508.9",
+    "minimum_open_equity_rub": "8506.9",
+    "minimum_free_above_assumed_margin_rub": "7055.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "2944.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  },
+  {
+    "scenario": "ILLUSTRATIVE_FEE5_CARRY1",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "5",
+    "assumed_adverse_carry_per_calendar_day_rub": "1",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "80",
+    "closed_adverse_carry_rub": "579",
+    "closed_conditional_net_rub": "3507.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1248.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "85",
+    "total_adverse_carry_rub": "631",
+    "total_conditional_net_rub": "4755.9",
+    "counterfactual_final_equity_rub": "14755.9",
+    "feasible_scenario_final_equity_rub": "14755.9",
+    "daily_max_drawdown_rub": "2138.2",
+    "daily_max_drawdown_percent": "18.80115083299313776948348594",
+    "minimum_equity_rub": "8300.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8353.9",
+    "minimum_open_equity_rub": "8350.9",
+    "minimum_free_above_assumed_margin_rub": "6900.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "3099.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  }
+]
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest discover -s audits/gldrubf_economics -p test_*.py -v
+
+test_adverse_extreme_uses_high_for_short_low_for_long (test_economics.EconomicsTests.test_adverse_extreme_uses_high_for_short_low_for_long) ... ok
+test_daily_open_and_ohlc_minima_differ_and_path_is_checked (test_economics.EconomicsTests.test_daily_open_and_ohlc_minima_differ_and_path_is_checked) ... ok
+test_fees_cover_seventeen_legs_and_calendar_carry_covers_631_dates (test_economics.EconomicsTests.test_fees_cover_seventeen_legs_and_calendar_carry_covers_631_dates) ... ok
+test_gross_conversion_is_conditional_and_does_not_deduct_margin (test_economics.EconomicsTests.test_gross_conversion_is_conditional_and_does_not_deduct_margin) ... ok
+test_margin_failure_does_not_produce_a_feasible_final_result (test_economics.EconomicsTests.test_margin_failure_does_not_produce_a_feasible_final_result) ... ok
+test_capture_projects_only_contract_fields_and_keeps_long_short_separate (test_economics.LocalCaptureTests.test_capture_projects_only_contract_fields_and_keeps_long_short_separate) ... ok
+test_cli_credential_never_written_and_previous_environment_restored (test_economics.LocalCaptureTests.test_cli_credential_never_written_and_previous_environment_restored) ... ok
+test_invalid_margin_currency_or_tick_blocks_capture (test_economics.LocalCaptureTests.test_invalid_margin_currency_or_tick_blocks_capture) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.048s
+
+OK
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning audits/gldrubf_economics/calculate.py --output /tmp/mx-economics-313-results
+[
+  {
+    "scenario": "CONDITIONAL_GROSS_Q1_GO1400",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "0",
+    "assumed_adverse_carry_per_calendar_day_rub": "0",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "0",
+    "closed_adverse_carry_rub": "0",
+    "closed_conditional_net_rub": "4166.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1305.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "0",
+    "total_adverse_carry_rub": "0",
+    "total_conditional_net_rub": "5471.9",
+    "counterfactual_final_equity_rub": "15471.9",
+    "feasible_scenario_final_equity_rub": "15471.9",
+    "daily_max_drawdown_rub": "2097.2",
+    "daily_max_drawdown_percent": "17.23820237795061776286440251",
+    "minimum_equity_rub": "8480.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8533.9",
+    "minimum_open_equity_rub": "8531.9",
+    "minimum_free_above_assumed_margin_rub": "7080.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "2919.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  },
+  {
+    "scenario": "ILLUSTRATIVE_TOTAL_FEE5",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "5",
+    "assumed_adverse_carry_per_calendar_day_rub": "0",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "80",
+    "closed_adverse_carry_rub": "0",
+    "closed_conditional_net_rub": "4086.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1300.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "85",
+    "total_adverse_carry_rub": "0",
+    "total_conditional_net_rub": "5386.9",
+    "counterfactual_final_equity_rub": "15386.9",
+    "feasible_scenario_final_equity_rub": "15386.9",
+    "daily_max_drawdown_rub": "2107.2",
+    "daily_max_drawdown_percent": "17.44061942094232709772568501",
+    "minimum_equity_rub": "8455.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8508.9",
+    "minimum_open_equity_rub": "8506.9",
+    "minimum_free_above_assumed_margin_rub": "7055.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "2944.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  },
+  {
+    "scenario": "ILLUSTRATIVE_FEE5_CARRY1",
+    "all_economics_parameters_unverified": true,
+    "initial_capital_rub": "10000",
+    "rub_per_point": "1",
+    "conditional_rub_per_tick": "0.1",
+    "assumed_long_initial_margin_rub": "1400",
+    "assumed_short_initial_margin_rub": "1400",
+    "assumed_total_commission_per_side_rub": "5",
+    "assumed_adverse_carry_per_calendar_day_rub": "1",
+    "closed_gross_rub": "4166.4",
+    "closed_commission_rub": "80",
+    "closed_adverse_carry_rub": "579",
+    "closed_conditional_net_rub": "3507.4",
+    "unrealized_gross_rub": "1305.5",
+    "open_conditional_contribution_rub": "1248.5",
+    "total_gross_rub": "5471.9",
+    "total_commission_rub": "85",
+    "total_adverse_carry_rub": "631",
+    "total_conditional_net_rub": "4755.9",
+    "counterfactual_final_equity_rub": "14755.9",
+    "feasible_scenario_final_equity_rub": "14755.9",
+    "daily_max_drawdown_rub": "2138.2",
+    "daily_max_drawdown_percent": "18.80115083299313776948348594",
+    "minimum_equity_rub": "8300.6",
+    "minimum_equity_provider_day": "2025-07-29",
+    "minimum_equity_kind": "ADVERSE_OHLC",
+    "minimum_daily_close_equity_rub": "8353.9",
+    "minimum_open_equity_rub": "8350.9",
+    "minimum_free_above_assumed_margin_rub": "6900.6",
+    "simplified_margin_requirement_met_on_all_samples": true,
+    "first_failed_provider_day": null,
+    "first_failed_sample": null,
+    "minimum_initial_capital_for_this_fixed_path_rub": "3099.4",
+    "actual_broker_liquidation_rule_or_outcome_verified": false
+  }
+]
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s audits/gldrubf_economics -p test_*.py -v
+
+test_adverse_extreme_uses_high_for_short_low_for_long (test_economics.EconomicsTests.test_adverse_extreme_uses_high_for_short_low_for_long) ... ok
+test_daily_open_and_ohlc_minima_differ_and_path_is_checked (test_economics.EconomicsTests.test_daily_open_and_ohlc_minima_differ_and_path_is_checked) ... ok
+test_fees_cover_seventeen_legs_and_calendar_carry_covers_631_dates (test_economics.EconomicsTests.test_fees_cover_seventeen_legs_and_calendar_carry_covers_631_dates) ... ok
+test_gross_conversion_is_conditional_and_does_not_deduct_margin (test_economics.EconomicsTests.test_gross_conversion_is_conditional_and_does_not_deduct_margin) ... ok
+test_margin_failure_does_not_produce_a_feasible_final_result (test_economics.EconomicsTests.test_margin_failure_does_not_produce_a_feasible_final_result) ... ok
+test_capture_projects_only_contract_fields_and_keeps_long_short_separate (test_economics.LocalCaptureTests.test_capture_projects_only_contract_fields_and_keeps_long_short_separate) ... ok
+test_cli_credential_never_written_and_previous_environment_restored (test_economics.LocalCaptureTests.test_cli_credential_never_written_and_previous_environment_restored) ... ok
+test_invalid_margin_currency_or_tick_blocks_capture (test_economics.LocalCaptureTests.test_invalid_margin_currency_or_tick_blocks_capture) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.057s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python audits/gldrubf_economics/capture_current.py --help
+usage: capture_current.py [-h] [--output OUTPUT]
+
+Optional LOCAL read-only contract snapshot, never run by the economics
+calculation. Hidden interactive token; only FutureBy and GetFuturesMargin; no
+accounts/orders. No token, Authorization, arbitrary response body or traceback
+written to output.
+
+options:
+  -h, --help       show this help message and exit
+  --output OUTPUT
+
+exit_code=0
+
+Byte-identical Python 3.12/3.13: balance_checks_conditional.csv SHA256=a0e6b6b821577c92af7951cdfa31c4d5a34ab9933cfcd439deaa1f2929cb027b
+Byte-identical Python 3.12/3.13: daily_equity_conditional.csv SHA256=6ed5f229138f0d76e416f4e58382b04f5bb63e279ceb498dd4ff4e4f1721aefc
+Byte-identical Python 3.12/3.13: margin_sensitivity.csv SHA256=48c6775a52277f08852cd5e54fb2830917817e0882bbc02194ed40ce6a2bed9c
+Byte-identical Python 3.12/3.13: open_position_conditional.csv SHA256=43c7ae5f83dfc12c2a9a054153e299fa0426af37e021c9831ddd1457dbd380c9
+Byte-identical Python 3.12/3.13: point_value_sensitivity.csv SHA256=557ce4619a9c1520f28d6e4869fde093cd112dfc252ef5accde19e54e5504602
+Byte-identical Python 3.12/3.13: scenario_summary.csv SHA256=621d47b8b7834b101393132b4a9e9e584ade18ee7eea5a42b3e16d2a2408923c
+Byte-identical Python 3.12/3.13: summary.json SHA256=18349d9eca7a8070497ad6bf915426293ed14a709ec0dad5c0632a5543d1b98f
+Byte-identical Python 3.12/3.13: trades_rub_conditional.csv SHA256=e9284ec7ccdc6c18c40faea6696d8fddd191d52afae208fdafd6b494c7306f44
+src: unchanged vs 531f527
+tests: unchanged vs 531f527
+deploy: unchanged vs 531f527
+audits/sma20_50_scenario: unchanged vs 531f527
+audits/gldrubf_real_history: unchanged vs 531f527
+All 8 conditional trade table rows match calculated CSV.
+8 controls passed on each Linux runtime, ResourceWarning=error.
+Current contract numeric values / real tariff / real historical funding remain unverified, recorded as null.
+PASS: calculations, projections, margin-failure gates, no credential persistence, immutable inputs.

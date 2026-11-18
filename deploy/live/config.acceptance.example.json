@@ -8,7 +8,7 @@
   "snapshot_max_age_seconds": 30,
   "margin_stress_multiplier": "3",
   "cash_reserve_rub": "2000",
-  "max_order_fee_rub": "20",
+  "max_order_fee_rub": "25",
   "max_slippage_ticks": 2,
   "order_ttl_seconds": 30,
   "poll_seconds": 15,

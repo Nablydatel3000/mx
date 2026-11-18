@@ -15,6 +15,7 @@ from unittest.mock import Mock,patch
 
 from src.gldrubf_bot import live_acceptance as acc
 from src.gldrubf_bot.live_api import Broker,UID,quoted
+from src.gldrubf_bot.account_diagnostics import METHODS
 from src.gldrubf_bot.live import load_config
 from src.gldrubf_bot.models import DataError,UTC,iso
 from tests.test_api import FakeResponse
@@ -33,7 +34,8 @@ class AcceptanceTests(unittest.TestCase):
         self.root=Path(self.temp.name);self.now=datetime(2026,11,18,12,tzinfo=UTC);self.clock=lambda:self.now
         self.c=deepcopy(acc.PROPOSED);self.c['account_id']=ACCOUNT
         self.cfg=self.root/'config.json';self.cfg.write_text(json.dumps(self.c))
-        self.requests=[];self.balance=15000;self.position=0;self.go_short=1400;self.capacity=2
+        self.requests=[];self.balance=15000;self.position=0;self.go_long=1400;self.go_short=1400;self.capacity=2
+        self.fee=D(10);self.account_changes={}
         self.bad_method=None;self.missing_margin=False;self.closed=False;self.no_complete=False
         self.quote_lag=0;self.inject_future=False;self.existing_orders=False
         self.clock_backwards=False
@@ -66,7 +68,7 @@ class AcceptanceTests(unittest.TestCase):
         elif method.endswith('/GetOrderState'):
             r=dict(instrumentUid=UID,orderRequestId='existing-request',orderId='existing-broker',executionReportStatus='EXECUTION_REPORT_STATUS_NEW',lotsRequested='2',lotsExecuted='0',stages=[])
         elif method.endswith('/GetFuturesMargin'):
-            r=dict(minPriceIncrement=quoted('.1'),minPriceIncrementAmount=quoted('.1'),initialMarginOnBuy=money(1400),initialMarginOnSell=money(self.go_short))
+            r=dict(minPriceIncrement=quoted('.1'),minPriceIncrementAmount=quoted('.1'),initialMarginOnBuy=money(self.go_long),initialMarginOnSell=money(self.go_short))
         elif method.endswith('/GetTradingStatus'):
             r=dict(instrumentUid=UID,tradingStatus='SECURITY_TRADING_STATUS_NOT_AVAILABLE_FOR_TRADING' if self.closed else 'SECURITY_TRADING_STATUS_NORMAL_TRADING',apiTradeAvailableFlag=not self.closed,limitOrderAvailableFlag=not self.closed,marketOrderAvailableFlag=not self.closed)
             if self.wrong_status_uid:r['instrumentUid']='other-instrument'
@@ -88,11 +90,12 @@ class AcceptanceTests(unittest.TestCase):
             r=dict(currency='rub',buyMarginLimits=dict(buyMaxLots=str(self.capacity)),sellMarginLimits=dict(sellMaxLots=str(self.capacity)))
         elif method.endswith('/GetOrderPrice'):
             self.assertEqual(body['quantity'],'2')
-            r=dict(executedCommissionRub=money(10),executedCommission=money(10),lotsRequested='2')
+            r=dict(executedCommissionRub=money(self.fee),executedCommission=money(self.fee),lotsRequested='2')
         elif method.endswith('/GetOperationsByCursor'):
             r=dict(items=[],hasNext=False)
             if self.clock_backwards:self.now-=timedelta(hours=1)
         else:raise AssertionError('Unexpected HTTP method '+method)
+        if method in self.account_changes:self.account_changes[method](r)
         return FakeResponse(json.dumps(dict(**r,**self.responses_extra)).encode())
 
     def broker(self):return REAL_CLASS(ACCOUNT,transport=self.transport,clock=self.clock)
@@ -256,6 +259,140 @@ class AcceptanceTests(unittest.TestCase):
         self.assertNotIn(TOKEN,output.getvalue());self.assertIn(ACCOUNT,output.getvalue())
         self.assertEqual([m for m,p in self.requests],['UsersService/GetAccounts'])
         self.assertFalse((self.root/'report.json').exists())
+
+    def test_missing_margin_is_not_reported_as_insufficient_cash(self):
+        self.missing_margin=True;r=self.collect()
+        d=r['statistics']['account_diagnostic']
+        self.assertEqual(d['failure'],dict(method='UsersService/GetMarginAttributes',field='correctedMargin',reason='required_money_missing'))
+        self.assertEqual(d['failure_group'],'schema_error')
+        for side in ('long','short'):
+            c=r['statistics']['capital_checks'][side]
+            self.assertFalse(c['allowed']);self.assertEqual(c['evaluation'],'not_evaluated')
+            self.assertEqual(c['reason'],'account_snapshot_unavailable');self.assertNotIn('available_rub',c)
+        self.assertNotIn(TOKEN,json.dumps(d));self.assertNotIn(ACCOUNT,json.dumps(d))
+
+    def test_real_observed_go_fee_profile_and_capital_arithmetic(self):
+        self.go_long=D('1035.82');self.go_short=D('1036.67');self.fee=D('20.28');self.capacity=10
+        r=self.collect();self.assertTrue(r['read_checks_ok'],r['blockers'])
+        checks=r['statistics']['capital_checks']
+        self.assertEqual(D(checks['long']['required_rub']),D('12429.60'))
+        self.assertEqual(D(checks['short']['required_rub']),D('12434.70'))
+        self.c['max_order_fee_rub']='20';r=self.collect()
+        self.assertIn('fee_ceiling_long',r['blockers']);self.assertIn('fee_ceiling_short',r['blockers'])
+        self.assertTrue(r['statistics']['capital_checks']['long']['allowed'])
+        self.assertFalse(r['read_checks_ok'])
+
+    def test_liquid_and_withdraw_limits_are_not_replaced_by_claimed_deposit(self):
+        self.account_changes={
+          'OperationsService/GetPositions':lambda r:r.update(blocked=[money(200)]),
+          'OperationsService/GetWithdrawLimits':lambda r:r.update(money=[money(12000)],blocked=[money(500)],blockedGuarantee=[money(2000)]),
+          'UsersService/GetMarginAttributes':lambda r:r.update(liquidPortfolio=money(14500),startingMargin=money(1000),correctedMargin=money(1500))}
+        r=self.collect();s=r['statistics'];d=s['account_diagnostic']
+        self.assertTrue(d['snapshot_validated']);self.assertEqual(s['balance_rub'],'15000')
+        self.assertEqual(s['available_conservative_rub'],'9500')
+        self.assertEqual(d['availability_components_rub'],dict(positions_cash_minus_blocked_rub='14800',
+            withdraw_money_minus_blocked_and_guarantee_rub='9500',liquid_minus_starting_margin_rub='13500',liquid_minus_corrected_margin_rub='13000'))
+        self.assertEqual(s['capital_checks']['long']['evaluation'],'evaluated')
+        self.assertIn('capital_long',r['blockers']);self.assertNotIn('account_snapshot',r['blockers'])
+
+    def test_account_echo_missing_or_wrong_is_not_printed(self):
+        for method in ('OperationsService/GetPositions','OperationsService/GetPortfolio'):
+            for change in (lambda r:r.pop('accountId'),lambda r:r.update(accountId=TOKEN)):
+                with self.subTest(method=method):
+                    self.account_changes={method:change};r=self.collect();d=r['statistics']['account_diagnostic']
+                    self.assertEqual(d['failure']['reason'],'account_echo_missing_or_mismatch')
+                    self.assertNotIn(TOKEN,json.dumps(r));self.assertNotIn(ACCOUNT,json.dumps(r))
+
+    def test_invalid_required_money_fields_are_identified_by_path(self):
+        for field in ('liquidPortfolio','startingMargin','minimalMargin','correctedMargin','amountOfMissingFunds'):
+            for invalid in (None,dict(currency='usd',units='15000'),dict(currency='rub',units=TOKEN)):
+                with self.subTest(field=field,invalid=type(invalid).__name__):
+                    self.account_changes={'UsersService/GetMarginAttributes':lambda r,f=field,v=invalid:r.update({f:v})}
+                    r=self.collect();failure=r['statistics']['account_diagnostic']['failure']
+                    self.assertEqual(failure['field'],field);self.assertEqual(failure['reason'],'required_money_invalid_or_non_rub')
+                    self.assertNotIn(TOKEN,json.dumps(r))
+
+    def test_empty_arrays_and_omitted_proto_zero_parts_are_valid_not_guessed_funds(self):
+        self.account_changes={'OperationsService/GetPositions':lambda r:r.pop('blocked'),
+            'OperationsService/GetWithdrawLimits':lambda r:(r.pop('blocked'),r.pop('blockedGuarantee')),
+            'UsersService/GetMarginAttributes':lambda r:r.update(startingMargin=dict(currency='rub'),minimalMargin=dict(currency='rub'),correctedMargin=dict(currency='rub'),amountOfMissingFunds=dict(currency='rub'))}
+        self.assertTrue(self.collect()['read_checks_ok'])
+        self.account_changes={'OperationsService/GetPositions':lambda r:r.pop('money')}
+        r=self.collect();self.assertTrue(r['statistics']['account_diagnostic']['snapshot_validated'])
+        self.assertEqual(r['statistics']['available_conservative_rub'],'0')
+        self.assertIn('capital_long',r['blockers'])
+
+    def test_malformed_money_arrays_duplicate_rub_and_non_rub_fail_closed(self):
+        cases=[(None,'expected_array'),([None],'money_currency_or_object_invalid'),
+               ([money(1),money(2)],'duplicate_rub_balance'),
+               ([dict(currency='usd',units='1')],'non_rub_exposure')]
+        for method,fields in (('OperationsService/GetPositions',('money','blocked')),
+                              ('OperationsService/GetWithdrawLimits',('money','blocked','blockedGuarantee'))):
+            for field in fields:
+                for value,reason in cases:
+                    with self.subTest(method=method,field=field,reason=reason):
+                        self.account_changes={method:lambda r,f=field,v=value:r.update({f:v})}
+                        d=self.collect()['statistics']['account_diagnostic'];self.assertEqual(d['failure']['reason'],reason)
+                        self.assertEqual(d['failure']['field'],field)
+
+    def test_loading_exposure_and_margin_invariants_are_still_blocked(self):
+        cases=[('OperationsService/GetPositions',lambda r:r.update(limitsLoadingInProgress=True),'limits_loading'),
+          ('OperationsService/GetPositions',lambda r:r.update(limitsLoadingInProgress='false'),'expected_boolean'),
+          ('OperationsService/GetPositions',lambda r:r.update(securities=[dict(balance='1')]),'other_account_exposure'),
+          ('OperationsService/GetPositions',lambda r:r.update(futures=[dict(instrumentUid='foreign',balance='1')]),'other_futures_exposure'),
+          ('UsersService/GetMarginAttributes',lambda r:r.update(startingMargin=money(1),minimalMargin=money(2)),'margin_invariants')]
+        for method,change,reason in cases:
+            with self.subTest(reason=reason):
+                self.account_changes={method:change};r=self.collect()
+                self.assertEqual(r['statistics']['account_diagnostic']['failure']['reason'],reason)
+                self.assertIn('account_snapshot',r['blockers'])
+
+    def test_margin_deficit_is_a_valid_snapshot_with_blocked_capital(self):
+        self.account_changes={'UsersService/GetMarginAttributes':lambda r:r.update(amountOfMissingFunds=money(100))}
+        r=self.collect();self.assertTrue(r['statistics']['account_diagnostic']['snapshot_validated'])
+        self.assertTrue(r['statistics']['margin_deficit']);self.assertIn('capital_long',r['blockers'])
+
+    def test_account_http_failure_does_not_invent_zero_or_persist_body(self):
+        self.bad_method='OperationsService/GetPositions';r=self.collect()
+        d=r['statistics']['account_diagnostic'];self.assertFalse(d['snapshot_validated'])
+        self.assertEqual(d['failure'],dict(reason='account_endpoint_failed',method=self.bad_method))
+        self.assertIsNone(d['snapshot']);self.assertNotIn(TOKEN,json.dumps(r))
+        self.assertEqual(r['statistics']['capital_checks']['long']['evaluation'],'not_evaluated')
+
+    def test_standalone_account_command_uses_only_four_reads_preserves_full_report(self):
+        self.assertEqual(self.run_check()[0],0);previous=(self.root/'report.json').read_bytes();self.requests=[]
+        def factory(account):return REAL_CLASS(account,transport=self.transport,clock=self.clock)
+        with patch.object(acc,'ReadOnlyBroker',side_effect=factory), \
+             patch.object(acc.sys,'stdin',SimpleNamespace(buffer=io.BytesIO((TOKEN+'\n').encode()))),contextlib.redirect_stdout(io.StringIO()) as output:
+            code=acc.main(['account-diagnostics','--credential-stdin','--config',str(self.cfg),'--state',str(self.root)])
+        self.assertEqual(code,0);self.assertEqual([m for m,p in self.requests],list(METHODS))
+        self.assertEqual(previous,(self.root/'report.json').read_bytes())
+        self.assertFalse(acc.status(self.root,self.clock)['report_matches_last_attempt'])
+        self.assertNotIn(TOKEN,output.getvalue());self.assertNotIn(ACCOUNT,output.getvalue())
+        self.assertTrue(json.loads((self.root/'account_diagnostic.json').read_text())['snapshot_validated'])
+        if os.name=='posix':self.assertEqual((self.root/'account_diagnostic.json').stat().st_mode&0o777,0o600)
+
+    def test_fee_policy_update_is_explicit_acceptance_only_and_preserves_other_settings(self):
+        before=deepcopy(self.c);before['max_order_fee_rub']='20';self.cfg.write_text(json.dumps(before));os.chmod(self.cfg,0o640)
+        with patch.object(acc,'ReadOnlyBroker') as broker,contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(acc.main(['fee-limit','--config',str(self.cfg),'--state',str(self.root)]),0);broker.assert_not_called()
+        after=json.loads(self.cfg.read_text());self.assertEqual(after.pop('max_order_fee_rub'),'25');before.pop('max_order_fee_rub')
+        self.assertEqual(before,after)
+        if os.name=='posix':self.assertEqual(self.cfg.stat().st_mode&0o777,0o640)
+
+    def test_readonly_validation_reuses_original_snapshot_without_duplicate_http(self):
+        for position in (0,1,-2):
+            with self.subTest(position=position):
+                self.position=position;original=Broker.account(self.broker());self.requests=[]
+                broker=self.broker();self.assertEqual(broker.account(),original)
+                self.assertEqual([m for m,p in self.requests],list(METHODS))
+
+    def test_unknown_validation_exception_text_is_never_reported(self):
+        with patch.object(Broker,'account',side_effect=DataError(TOKEN+' '+ACCOUNT)):
+            r=self.collect()
+        self.assertIn('account_snapshot',r['blockers'])
+        self.assertEqual(r['statistics']['account_diagnostic']['failure']['reason'],'unclassified_validation_error')
+        self.assertNotIn(TOKEN,json.dumps(r));self.assertNotIn(ACCOUNT,json.dumps(r))
 
 
 if __name__=='__main__':unittest.main()

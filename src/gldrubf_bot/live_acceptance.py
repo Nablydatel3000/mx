@@ -16,6 +16,7 @@ import sys
 import warnings
 
 from . import api
+from .account_diagnostics import inspect_account,SnapshotError
 from .autonomous import history_age,same_window
 from .live import load_config,risk_check
 from .live_api import Broker,UID,integer,rub
@@ -30,7 +31,7 @@ PROTECTED_ROOTS=tuple(Path(p) for p in ('/var/lib/gldrubf','/etc/gldrubf','/opt/
     '/var/lib/gldrubf-live','/etc/gldrubf-live','/opt/gldrubf-live'))
 PROPOSED=dict(account_id='REQUIRED_EXPLICIT_DEDICATED_BROKER_ACCOUNT',capital_rub='15000',contracts=2,instrument_uid=UID,
     max_complete_age_hours=96,quote_max_age_seconds=15,snapshot_max_age_seconds=30,
-    margin_stress_multiplier='3',cash_reserve_rub='2000',max_order_fee_rub='20',
+    margin_stress_multiplier='3',cash_reserve_rub='2000',max_order_fee_rub='25',
     max_slippage_ticks=2,order_ttl_seconds=30,poll_seconds=15,min_session_remaining_seconds=60)
 
 FIELDS={
@@ -55,6 +56,8 @@ READ_METHODS=frozenset(FIELDS)  # Independent fixed whitelist, never inherited f
 
 
 def safe_error(exc):
+    if isinstance(exc,SnapshotError):
+        return dict(category='account_snapshot_validation_error',reason=exc.reason,field=exc.field)
     if isinstance(exc,api.APIError):
         return dict(category=exc.category or 'api_error',http_status=exc.http_status,
             content_type=exc.content_type,grpc_code=exc.grpc_code,api_code=exc.api_code)
@@ -107,6 +110,13 @@ class ReadOnlyBroker(Broker):
     def post(self,*args,**kwargs):raise DataError('Acceptance cannot post orders')
     def cancel(self,*args,**kwargs):raise DataError('Acceptance cannot cancel orders')
 
+    def account(self):
+        snapshot,self.account_diagnostic=inspect_account(self)
+        if snapshot is None:
+            failure=self.account_diagnostic['failure']
+            raise SnapshotError(failure['reason'],failure.get('field'))
+        return snapshot
+
 
 def collect(c,broker,clock=lambda:datetime.now(UTC)):
     started=clock();checks=[];values={};stats={}
@@ -124,6 +134,8 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
     instrument=check('instrument',lambda:broker.read.instrument(UID))
     account_started=clock()
     account=check('account_snapshot',broker.account);account_checked=clock()
+    stats['account_diagnostic']=getattr(broker,'account_diagnostic',dict(snapshot_validated=False,
+        failure=dict(reason='account_diagnostic_unavailable')))
     if account is not None:
         stats.update(account);stats['account_checked_at']=iso(account_checked)
         if account['position']!=0 or account['blocked']:
@@ -184,6 +196,12 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
             number(fees[label]) if fees.get(label) is not None else number(c['max_order_fee_rub'])),
             fee_source='broker_estimate' if fees.get(label) is not None else 'proposed_ceiling_not_actual_fee')
             for side,label in ((1,'long'),(-1,'short'))}
+        for item in stats['capital_checks'].values():
+            item['evaluation']='evaluated'
+            item['reason']='sufficient_verified_collateral' if item['allowed'] else 'verified_collateral_or_margin_policy_failed'
+    else:
+        stats['capital_checks']={label:dict(allowed=False,evaluation='not_evaluated',
+            reason='account_snapshot_unavailable' if account is None else 'current_margin_unavailable') for label in ('long','short')}
     op_start=iso(datetime.combine(started.date(),daytime.min,UTC)-timedelta(days=7))
     operations=check('operations_sample',lambda:broker.operations(op_start,clock()))
     if operations is not None:
@@ -302,13 +320,18 @@ def display_status(result):
     print('Open broker orders:',s.get('open_order_count','unavailable'))
     print('Executed trade operations (sample):',s.get('executed_trade_operation_count','unavailable'))
     print('Read-check blockers:',', '.join(report.get('blockers',[])) or 'none in cached report')
+    diagnostic=s.get('account_diagnostic',{})
+    if diagnostic.get('failure'):print('Account validation:',json.dumps(diagnostic['failure'],sort_keys=True))
+    for label,item in s.get('capital_checks',{}).items():
+        print('Capital '+label+':',item.get('evaluation','evaluated'),item.get('reason',''),
+              '| Required RUB:',item.get('required_rub','unavailable'),'| Available RUB:',item.get('available_rub','unavailable'))
     print('Market gates now:',report.get('market',{}).get('tradable_now',False),'| IOC runtime support: UNCONFIRMED')
     print('Order submission/cancellation: permanently prohibited in this command.')
 
 
 def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command',choices=['configure','account','accounts','install-token','check','status'])
+    p.add_argument('command',choices=['configure','account','accounts','install-token','check','status','account-diagnostics','fee-limit'])
     p.add_argument('--config',type=Path,default=CONFIG);p.add_argument('--state',type=Path,default=ROOT)
     p.add_argument('--credential-file',type=Path,default=TOKEN)
     p.add_argument('--credential-stdin',action='store_true')
@@ -338,6 +361,13 @@ def main(argv=None):
             if os.name=='posix':os.chown(args.config,old.st_uid,old.st_gid)
             os.chmod(args.config,old.st_mode&0o777)
             print('Account explicitly selected in acceptance config only; no API request.');return 0
+        if args.command=='fee-limit':
+            old=args.config.stat();c=load_config(args.config)
+            if number(c['max_order_fee_rub']) not in (D('20'),D('25')):raise DataError('Unexpected previous acceptance fee policy; manual review required')
+            c['max_order_fee_rub']='25';atomic_json(args.config,c)
+            if os.name=='posix':os.chown(args.config,old.st_uid,old.st_gid)
+            os.chmod(args.config,old.st_mode&0o777)
+            print('Acceptance-only fee ceiling set to 25 RUB. No API request or LIVE permission.');return 0
         if args.command=='install-token':
             value=token_text(hidden('Trading token (hidden, LOCAL ONLY; read-only diagnostic use): '))
             fd=os.open(args.credential_file,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
@@ -368,6 +398,16 @@ def main(argv=None):
             value=token_text(sys.stdin.buffer.read(8193).decode('ascii'))
             os.environ['T_INVEST_TOKEN']=value
             broker=ReadOnlyBroker(c['account_id'])
+            if args.command=='account-diagnostics':
+                snapshot,diagnostic=inspect_account(broker)
+                diagnostic.update(mode='ACCOUNT_DIAGNOSTICS_READ_ONLY',run_id=attempt['run_id'],
+                    checked_at=iso(datetime.now(UTC)),method_checks=broker.calls,live_accepted=False,
+                    order_submission_count=0,order_cancellation_count=0)
+                atomic_json(args.state/'account_diagnostic.json',diagnostic)
+                attempt.update(status='DONE',checked_at=diagnostic['checked_at'],read_checks_ok=snapshot is not None)
+                atomic_json(args.state/'attempt.json',attempt)
+                print(json.dumps(diagnostic,ensure_ascii=False,indent=2))
+                return 0 if snapshot is not None else 2
             report=collect(c,broker);report['run_id']=attempt['run_id']
             atomic_json(args.state/'report.json',report)
             attempt.update(status='DONE',checked_at=report['checked_at'],read_checks_ok=report['read_checks_ok'])

@@ -1,5 +1,8 @@
 # Read-only приёмка GLDRUBF рядом с PAPER
 
+**Это исторический отчёт этапа 96cac6e. Актуальное продолжение по отказу
+account_snapshot и обновлению на Jino: [ACCOUNT_SNAPSHOT_RU.md](ACCOUNT_SNAPSHOT_RU.md).**
+
 18.11.2026, база `feature/gldrubf-live-gated` / `8c95e6f`.
 
 **Доступа к Jino нет. На VPS ничего не развёрнуто и реальные авторизованные

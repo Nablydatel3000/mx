@@ -1,0 +1,74 @@
+"""Offline, bounded update of the existing acceptance installation. No API call.
+
+Does not read/write config, credentials, reports, SQLite or systemd. Unknown
+installed code is refused. Backup contains only the replaced code files.
+"""
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import tempfile
+
+OLD={
+ 'live_acceptance.py':'5896fca66bdfbec1cf781c9444e0c69befca5da53f3322b55f3bf39dd8aeeff9',
+ 'acceptance_check.sh':'9c7800a50668023794c7f1d8c2d1d93fc2fa01072ec91bf7bb78bca7b2d8e858'}
+CORE='3e23641059ff41a7edfb26b81b1738a3807f5737990f50dabed984fa448d5afa'
+
+
+def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def physical(path):
+    if path.resolve()!=path.absolute():raise RuntimeError('Symlink/alternative installation path; review required')
+    if path.exists() and (not path.is_file() or path.stat().st_nlink!=1):raise RuntimeError('Expected regular, non-hardlinked file')
+
+
+def update(source,code,wrapper,state):
+    import fcntl  # Linux updater; no service or trading imports.
+    source,code,wrapper,state=map(Path,(source,code,wrapper,state))
+    core=code/'src/gldrubf_bot/live_api.py';physical(core)
+    if digest(core)!=CORE:raise RuntimeError('Unknown base broker adapter; no files replaced')
+    files=[(source/'src/gldrubf_bot/account_diagnostics.py',code/'src/gldrubf_bot/account_diagnostics.py',0o644),
+           (source/'src/gldrubf_bot/live_acceptance.py',code/'src/gldrubf_bot/live_acceptance.py',0o644),
+           (source/'deploy/live/acceptance_check.sh',wrapper,0o755)]
+    for src,dst,mode in files:
+        physical(src);physical(dst)
+        if not src.is_file():raise RuntimeError('Missing update source')
+        if dst.exists() and digest(dst) not in {OLD.get(src.name),digest(src)}:
+            raise RuntimeError('Unknown installed acceptance version; preserve and review')
+        if not dst.exists() and src.name!='account_diagnostics.py':raise RuntimeError('Existing acceptance installation required')
+    lock=state/'read_only.lock';physical(lock)
+    if not lock.exists():raise RuntimeError('Existing acceptance lock required; no runtime files created')
+    with lock.open('r+b') as stream:
+        fcntl.flock(stream,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        # Recheck inputs under the same physical lock used by the diagnostic.
+        if os.fstat(stream.fileno()).st_ino!=lock.stat().st_ino:raise RuntimeError('Lock identity changed')
+        backup=Path(tempfile.mkdtemp(prefix='acceptance-code-',dir=code.parent))
+        try:
+            for src,dst,mode in files:
+                if dst.exists():shutil.copy2(dst,backup/src.name)
+            for src,dst,mode in files:
+                fd,temporary=tempfile.mkstemp(prefix='.'+dst.name+'.',dir=dst.parent)
+                try:
+                    with os.fdopen(fd,'wb') as output:
+                        output.write(src.read_bytes());output.flush();os.fsync(output.fileno());os.fchmod(output.fileno(),mode)
+                    os.replace(temporary,dst)
+                finally:Path(temporary).unlink(missing_ok=True)
+        finally:fcntl.flock(stream,fcntl.LOCK_UN)
+    return backup
+
+
+def main():
+    if os.name!='posix' or os.geteuid()!=0:
+        print('Use sudo python3 deploy/live/update_readonly.py on Linux.');return 1
+    try:
+        source=Path(__file__).resolve().parents[2]
+        backup=update(source,Path('/opt/gldrubf-live-acceptance/mx'),
+            Path('/usr/local/bin/gldrubf-live-check'),Path('/var/lib/gldrubf-live-acceptance'))
+    except Exception:
+        print('STOP: read-only code update refused/failed; inspect installation locally. No credential/config/service changes.');return 1
+    print('Read-only code updated. Code backup:',backup)
+    print('Configuration/token/reports/PAPER/LIVE/systemd unchanged. Run account-diagnostics next.');return 0
+
+
+if __name__=='__main__':raise SystemExit(main())

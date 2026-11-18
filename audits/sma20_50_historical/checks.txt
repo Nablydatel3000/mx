@@ -1,0 +1,16 @@
+Historical data diagnostics — 2026-11-18
+Baseline: 3097a1be9994dd6d67dd237db3a3335cfff77b1c
+Branch: audit/sma20-50-historical-data
+$ python audits/sma20_50_historical/inventory.py --root /workspace --output audits/sma20_50_historical/inventory.json
+{"candidates": 0, "snapshots": 0, "scan_errors": 0}
+strategy.py: SHA256 matches working baseline
+research.py: SHA256 matches working baseline
+engine.py: SHA256 matches working baseline
+history.py: SHA256 matches working baseline
+api.py: SHA256 matches working baseline
+src/, tests/, deploy/: no changes vs baseline.
+sources.json: valid JSON; source fetch outcomes and pinned contract excerpts saved.
+Prior attachment retrieval failed: file could not be authorized or resolved.
+No broker API, token access, VPS access, backtest, profitability calculation or strategy optimization performed.
+No new engine tests necessary: production code unchanged. Existing synthetic tests are not performance evidence.
+inventory.py: compilation passed; read-only inventory completed.

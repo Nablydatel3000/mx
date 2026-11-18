@@ -1,0 +1,57 @@
+{
+  "checked_date": "2026-11-18",
+  "official_repository": "RussianInvestments/investAPI",
+  "official_contract_revision": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "revision_note": "Pinned version used by the previous audit; not an assertion of latest upstream HEAD.",
+  "broker_api_called": false,
+  "actual_economic_values_verified": false,
+  "sources": [
+    {
+      "name": "moex_contract",
+      "url": "https://www.moex.com/ru/contract.aspx?code=GLDRUBF",
+      "error": "URLError",
+      "reason": "Tunnel connection failed: 403 Forbidden"
+    },
+    {
+      "name": "moex_iss",
+      "url": "https://iss.moex.com/iss/engines/futures/markets/forts/securities/GLDRUBF.json?iss.meta=off",
+      "error": "URLError",
+      "reason": "Tunnel connection failed: 403 Forbidden"
+    },
+    {
+      "name": "broker_tariffs",
+      "url": "https://www.tbank.ru/invest/tariffs/",
+      "error": "URLError",
+      "reason": "Tunnel connection failed: 403 Forbidden"
+    },
+    {
+      "name": "instruments_proto",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/instruments.proto",
+      "http_status": 200,
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3",
+      "bytes": 120130,
+      "excerpts": [
+        "message GetFuturesMarginRequest {\n  string figi = 1 [deprecated = true]; // Идентификатор инструмента.\n  string instrument_id = 4 [(google.api.field_behavior) = REQUIRED]; //Идентификатор инструмента — `figi` или `instrument_uid`.\n}",
+        "message GetFuturesMarginResponse {\n  MoneyValue initial_margin_on_buy = 1; //Гарантийное обеспечение при покупке.\n  MoneyValue initial_margin_on_sell = 2; //Гарантийное обеспечение при продаже.\n  Quotation min_price_increment = 3; //Шаг цены.\n  Quotation min_price_increment_amount = 4; //Стоимость шага цены.\n}"
+      ]
+    },
+    {
+      "name": "marketdata_proto",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/3eaf23a25f598fe483c913184acdbd9132bc68d2/src/docs/contracts/marketdata.proto",
+      "http_status": 200,
+      "sha256": "6e7aed90bf5a7d53b857d128c845522ceda80daa5026f1984e5ae9328bd899dd",
+      "bytes": 50944,
+      "excerpts": [
+        "message GetCandlesRequest {\n  optional string figi = 1 [deprecated = true]; //Deprecated FIGI-идентификатор инструмента. Используйте `instrument_id`.\n  google.protobuf.Timestamp from = 2 [(google.api.field_behavior) = REQUIRED]; //Начало запрашиваемого периода по UTC.\n  google.protobuf.Timestamp to = 3 [(google.api.field_behavior) = REQUIRED]; //Окончание запрашиваемого периода по UTC.\n  CandleInterval interval = 4 [(google.api.field_behavior) = REQUIRED]; //Интервал запрошенных свечей.\n  optional string instrument_id = 5; //Идентификатор инструмента. Принимает значение `figi`, `instrument_uid` или `ticker + '_' + class_code`.\n  optional CandleSource candle_source_type = 7; //Тип источника свечи.\n  optional int32 limit = 10; //Максимальное количество свечей в ответе.\n\n  enum CandleSource {\n    CANDLE_SOURCE_UNSPECIFIED = 0; //Все свечи.\n    CANDLE_SOURCE_EXCHANGE = 1;  //Биржевые свечи.\n    CANDLE_SOURCE_INCLUDE_WEEKEND = 3; //Все свечи с учетом торговли по выходным.\n  }\n}",
+        "message HistoricCandle {\n  Quotation open = 1; //Цена открытия за 1 инструмент. Чтобы получить стоимость лота, нужно умножить на лотность инструмента. [Подробнее про перевод цен в валюту](./faq_marketdata/#_15).\n  Quotation high = 2; //Максимальная цена за 1 инструмент. Чтобы получить стоимость лота, нужно умножить на лотность инструмента. [Подробнее про перевод цен в валюту](./faq_marketdata/#_15).\n  Quotation low = 3; //Минимальная цена за 1 инструмент. Чтобы получить стоимость лота, нужно умножить на лотность инструмента. [Подробнее про перевод цен в валюту](./faq_marketdata/#_15).\n  Quotation close = 4; //Цена закрытия за 1 инструмент. Чтобы получить стоимость лота, нужно умножить на лотность инструмента. [Подробнее про перевод цен в валюту](./faq_marketdata/#_15).\n  int64 volume = 5; //Объем торгов в лотах.\n  google.protobuf.Timestamp time = 6; //Время свечи в часовом поясе UTC.\n  bool is_complete = 7; //Признак завершенности свечи. **false** — свеча за текущие интервал еще сформирована не полностью.\n  CandleSource candle_source = 9;  //Тип источника свечи\n  int64 volume_buy = 10; //Объем торгов на покупку.\n  int64 volume_sell = 11; //Объём торгов на продажу.\n}",
+        "message GetLastPricesRequest {\n  repeated string figi = 1 [deprecated = true]; //Deprecated FIGI-идентификатор инструмента. Используйте `instrument_id`.\n  repeated string instrument_id = 2; //Массив идентификаторов инструмента. Принимает значения `figi`, `instrument_uid` или `ticker + '_' + class_code`.\n  LastPriceType last_price_type = 3; //Тип запрашиваемой последней цены.\n  optional InstrumentStatus instrument_status = 9; //Статус запрашиваемых инструментов. [Возможные значения](#instrumentstatus).\n}"
+      ]
+    },
+    {
+      "name": "api_docs",
+      "url": "https://developer.tbank.ru/invest/intro/intro/",
+      "error": "URLError",
+      "reason": "Tunnel connection failed: 403 Forbidden"
+    }
+  ]
+}

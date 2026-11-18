@@ -38,3 +38,6 @@ jobs:
           systemd-analyze verify deploy/linux/*.service deploy/linux/*.timer
           sh -n deploy/live/status.sh
           systemd-analyze verify deploy/live/gldrubf-live.service
+          bash -n deploy/live/install_readonly.sh
+          sh -n deploy/live/acceptance_check.sh
+          sh -n deploy/live/acceptance_status.sh

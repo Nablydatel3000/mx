@@ -1,0 +1,120 @@
+GLDRUBF read-only acceptance preparation — 2026-11-18
+Base: 8c95e6f48cae9423f49c46926a2fbafa3ef436df
+No Jino access/deployment, real token, authorized T-Invest request, submission/cancellation or service activation.
+API responses in tests are mocked. No trading engine/permission/trading activation command was run.
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python --version
+Python 3.12.14
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -W error::ResourceWarning -m unittest tests.test_live_acceptance -v
+
+test_account_list_is_local_read_only_and_does_not_create_report (tests.test_live_acceptance.AcceptanceTests.test_account_list_is_local_read_only_and_does_not_create_report) ... ok
+test_all_mutation_entry_points_permanently_denied_even_with_guard (tests.test_live_acceptance.AcceptanceTests.test_all_mutation_entry_points_permanently_denied_even_with_guard) ... ok
+test_api_failure_and_manual_retry_remain_read_only (tests.test_live_acceptance.AcceptanceTests.test_api_failure_and_manual_retry_remain_read_only) ... ok
+test_backwards_clock_never_marks_current_check_successful (tests.test_live_acceptance.AcceptanceTests.test_backwards_clock_never_marks_current_check_successful) ... ok
+test_capacity_one_does_not_downsize_two_contract_estimate (tests.test_live_acceptance.AcceptanceTests.test_capacity_one_does_not_downsize_two_contract_estimate) ... ok
+test_cli_reads_protected_stdin_no_live_sqlite_or_permission (tests.test_live_acceptance.AcceptanceTests.test_cli_reads_protected_stdin_no_live_sqlite_or_permission) ... ok
+test_closed_market_is_waiting_not_ioc_proof (tests.test_live_acceptance.AcceptanceTests.test_closed_market_is_waiting_not_ioc_proof) ... ok
+test_configure_and_token_install_do_not_overwrite_existing_files (tests.test_live_acceptance.AcceptanceTests.test_configure_and_token_install_do_not_overwrite_existing_files) ... ok
+test_conservative_profile_refuses_insufficient_capital (tests.test_live_acceptance.AcceptanceTests.test_conservative_profile_refuses_insufficient_capital) ... ok
+test_existing_order_only_read_no_probe_or_cancel_created (tests.test_live_acceptance.AcceptanceTests.test_existing_order_only_read_no_probe_or_cancel_created) ... ok
+test_existing_position_blocks_flat_onboarding_without_closing (tests.test_live_acceptance.AcceptanceTests.test_existing_position_blocks_flat_onboarding_without_closing) ... ok
+test_failed_restart_never_presents_old_green_report_as_current (tests.test_live_acceptance.AcceptanceTests.test_failed_restart_never_presents_old_green_report_as_current) ... ok
+test_future_quote_is_validation_blocker (tests.test_live_acceptance.AcceptanceTests.test_future_quote_is_validation_blocker) ... ok
+test_http_200_missing_margin_field_blocks_and_projects_presence (tests.test_live_acceptance.AcceptanceTests.test_http_200_missing_margin_field_blocks_and_projects_presence) ... ok
+test_install_scripts_no_unit_activation_or_paper_paths (tests.test_live_acceptance.AcceptanceTests.test_install_scripts_no_unit_activation_or_paper_paths) ... ok
+test_no_completed_candles_never_invents_history (tests.test_live_acceptance.AcceptanceTests.test_no_completed_candles_never_invents_history) ... ok
+test_non_json_502_closes_body_and_records_safe_method_status (tests.test_live_acceptance.AcceptanceTests.test_non_json_502_closes_body_and_records_safe_method_status) ... ok
+test_non_list_orders_cannot_masquerade_as_no_orders (tests.test_live_acceptance.AcceptanceTests.test_non_list_orders_cannot_masquerade_as_no_orders) ... ok
+test_profile_covers_every_null_and_matches_example (tests.test_live_acceptance.AcceptanceTests.test_profile_covers_every_null_and_matches_example) ... ok
+test_protected_paper_or_live_directory_and_symlink_refused (tests.test_live_acceptance.AcceptanceTests.test_protected_paper_or_live_directory_and_symlink_refused) ... ok
+test_reports_exclude_token_account_names_ids_and_arbitrary_response (tests.test_live_acceptance.AcceptanceTests.test_reports_exclude_token_account_names_ids_and_arbitrary_response) ... ok
+test_short_margin_is_checked_independently (tests.test_live_acceptance.AcceptanceTests.test_short_margin_is_checked_independently) ... ok
+test_stale_quote_stops_market_gate_without_faking_new_time (tests.test_live_acceptance.AcceptanceTests.test_stale_quote_stops_market_gate_without_faking_new_time) ... ok
+test_status_does_not_make_api_calls_and_labels_old_cache (tests.test_live_acceptance.AcceptanceTests.test_status_does_not_make_api_calls_and_labels_old_cache) ... ok
+test_success_checks_all_read_methods_but_never_accepts_live_or_ioc (tests.test_live_acceptance.AcceptanceTests.test_success_checks_all_read_methods_but_never_accepts_live_or_ioc) ... ok
+test_unknown_account_is_never_automatically_selected (tests.test_live_acceptance.AcceptanceTests.test_unknown_account_is_never_automatically_selected) ... ok
+test_wrong_status_instrument_is_a_schema_blocker (tests.test_live_acceptance.AcceptanceTests.test_wrong_status_instrument_is_a_schema_blocker) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.053s
+
+OK
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest tests.test_live_acceptance -q
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.054s
+
+OK
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m compileall -q src/gldrubf_bot/live_acceptance.py tests/test_live_acceptance.py
+
+
+exit_code=0
+
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python -m src.gldrubf_bot.live_acceptance --help
+usage: live_acceptance.py [-h] [--config CONFIG] [--state STATE]
+                          [--credential-file CREDENTIAL_FILE]
+                          [--credential-stdin] [--json]
+                          {configure,account,accounts,install-token,check,status}
+
+Read-only LIVE acceptance. No Engine, Store, permission, order or cancel path.
+The trading token is read locally from a protected file descriptor. Only a
+closed READ whitelist reaches HTTP, even if a write guard is accidentally set.
+
+positional arguments:
+  {configure,account,accounts,install-token,check,status}
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --state STATE
+  --credential-file CREDENTIAL_FILE
+  --credential-stdin
+  --json                Status only: show safe structured diagnostics
+
+exit_code=0
+
+$ bash -n deploy/live/install_readonly.sh
+
+
+exit_code=0
+
+$ sh -n deploy/live/acceptance_check.sh
+
+
+exit_code=0
+
+$ sh -n deploy/live/acceptance_status.sh
+
+
+exit_code=0
+
+$ git diff --check
+
+
+exit_code=0
+
+Base PAPER/LIVE core unchanged: api.py SHA256=22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad
+Base PAPER/LIVE core unchanged: engine.py SHA256=ce8cbce68ef80e11cd335e42e5adc8ef3c3e8e679e8ada30d80d5f0fbcbb79cc
+Base PAPER/LIVE core unchanged: strategy.py SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+Base PAPER/LIVE core unchanged: autonomous.py SHA256=e242ddd5ebdb201bd314441a4d7b5e0c385df2584070fc482d25d3416ce9dacd
+Base PAPER/LIVE core unchanged: locking.py SHA256=eded44812b11cba29f6bb70901c97d540d802cf246c04249ed2e927e3b7932a9
+Base PAPER/LIVE core unchanged: cli.py SHA256=bf46afe8a426753a978a14ca55eb092d2897db4f3cdf6c3250493489d8e63e86
+Base PAPER/LIVE core unchanged: vps.py SHA256=0c75871ce86b8b49eb2ecf3d56d0cd4d1f3ccc937844caa5e9205105ac6289cd
+Base PAPER/LIVE core unchanged: live.py SHA256=f409fac7aa85c28acd583e9f388b470973c2baf2bee82c6289a394459a64ccbe
+Base PAPER/LIVE core unchanged: live_api.py SHA256=3e23641059ff41a7edfb26b81b1738a3807f5737990f50dabed984fa448d5afa
+Base PAPER/LIVE core unchanged: live_store.py SHA256=4111cb05b7b9c86290790079180c94c973fb6bca9dea44b38cbff4c30344b69e
+Closed independent read whitelist verified. Config profile matches module proposals.
+Official public contract reads succeeded. Actual Jino/broker replies and IOC runtime behavior remain unverified.
+RESULT: 27 focused read-only tests passed on each Linux runtime; all available preparation checks passed.

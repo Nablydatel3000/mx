@@ -1,0 +1,16 @@
+{
+  "account_id": "REQUIRED_EXPLICIT_DEDICATED_BROKER_ACCOUNT",
+  "capital_rub": "15000",
+  "contracts": 2,
+  "instrument_uid": "b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6",
+  "max_complete_age_hours": 96,
+  "quote_max_age_seconds": 15,
+  "snapshot_max_age_seconds": 30,
+  "margin_stress_multiplier": "3",
+  "cash_reserve_rub": "2000",
+  "max_order_fee_rub": "20",
+  "max_slippage_ticks": 2,
+  "order_ttl_seconds": 30,
+  "poll_seconds": 15,
+  "min_session_remaining_seconds": 60
+}

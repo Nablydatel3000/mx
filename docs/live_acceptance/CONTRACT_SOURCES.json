@@ -1,0 +1,61 @@
+{
+  "checked_date": "2026-11-18",
+  "sources": [
+    {
+      "name": "orders",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/orders.proto",
+      "http_status": 200,
+      "sha256": "1708f0dfc87a764dc9052d10748c2adf955c1593d5a6b5aa73cf104e5f4c4a6d",
+      "time_in_force_excerpt": "enum TimeInForceType {\n  TIME_IN_FORCE_UNSPECIFIED = 0; //Значение не определено см. TIME_IN_FORCE_DAY\n  TIME_IN_FORCE_DAY = 1; //Заявка действует до конца торгового дня. Значение по умолчанию\n  TIME_IN_FORCE_FILL_AND_KILL = 2; //Если в момент выставления возможно исполнение заявки(в т.ч. частичное), заявка будет исполнена или отменена сразу после выставления\n  TIME_IN_FORCE_FILL_OR_KILL = 3; //Если в момент выставления возможно полное исполнение заявки, заявка будет исполнена или отменена сразу после выставления, недоступно для срочного рынка и торговли по выходным\n}",
+      "same_bytes_as_8c95_contract_reference": true
+    },
+    {
+      "name": "marketdata",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/marketdata.proto",
+      "http_status": 200,
+      "sha256": "6e7aed90bf5a7d53b857d128c845522ceda80daa5026f1984e5ae9328bd899dd",
+      "same_bytes_as_8c95_contract_reference": true
+    },
+    {
+      "name": "orders_guide",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/head-orders.md",
+      "http_status": 200,
+      "sha256": "b03710587cfed45d1ff95adcfa7c80d86dedf6e521121e6890943976b4a355f2"
+    },
+    {
+      "name": "instruments",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/instruments.proto",
+      "http_status": 200,
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3",
+      "same_bytes_as_8c95_contract_reference": true
+    },
+    {
+      "name": "operations",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/operations.proto",
+      "http_status": 200,
+      "sha256": "0238a89faf2fe4165bc5cea2837f2ae7f051844efa97a93aaf1e0b0691d1e74a",
+      "same_bytes_as_8c95_contract_reference": true
+    },
+    {
+      "name": "users",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/users.proto",
+      "http_status": 200,
+      "sha256": "8c2df9196de89a7efa78fbf4c473046e3fc74d0f37fd020311506d51cd875eaa",
+      "same_bytes_as_8c95_contract_reference": true
+    },
+    {
+      "name": "common",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/common.proto",
+      "http_status": 200,
+      "sha256": "2eb887eb9001aa6ece1ed2d61ea7384d342dc88e2fabec37390d338f386d94f9",
+      "same_bytes_as_8c95_contract_reference": true
+    }
+  ],
+  "real_trading_api_called": false,
+  "jino_access_available": false,
+  "ioc_runtime_confirmed": false,
+  "limitations": [
+    "FAK enum exists and applies to limit orders; no instrument/account IOC capability read-only field.",
+    "REST schema presence and matching hashes do not establish actual exchange acceptance or fill/cancel behavior."
+  ]
+}

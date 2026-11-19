@@ -101,6 +101,11 @@ def inspect_account(broker):
     cached.call=replay;snapshot=None;failure=None
     if failures:
         failure=dict(reason='account_endpoint_failed',method=next(m for m in METHODS if m in failures))
+        exc=failures.get(METHODS[3])
+        if isinstance(exc,api.APIError) and (exc.http_status,exc.grpc_code,exc.api_code)==(400,3,30051):
+            failure=dict(reason='broker_margin_trading_disabled',method=METHODS[3],
+                http_status=400,grpc_code=3,api_code=30051,
+                next_step='verify_margin_trading_setting_for_selected_account_with_broker')
     elif findings:
         failure=dict(findings[0])
     else:
@@ -120,7 +125,8 @@ def inspect_account(broker):
         'other_account_exposure','other_futures_exposure','ambiguous_futures_position',
         'ambiguous_portfolio_position','other_portfolio_exposure','position_limit_or_quantity',
         'position_sources_disagree','margin_invariants','non_rub_exposure','duplicate_rub_balance'}
-    group=('endpoint_error' if failures else 'account_state_invariant' if failure and failure['reason'] in invariant_reasons
+    group=('broker_account_restriction' if failure and failure['reason']=='broker_margin_trading_disabled'
+           else 'endpoint_error' if failures else 'account_state_invariant' if failure and failure['reason'] in invariant_reasons
            else 'schema_error' if failure else None)
     report=dict(schema=1,snapshot_validated=snapshot is not None,failure=failure,failure_group=group,findings=findings,
         methods=methods,endpoint_failures=[m for m in METHODS if m in failures],

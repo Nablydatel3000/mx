@@ -10,6 +10,7 @@ import shutil
 import tempfile
 
 OLD={
+ 'account_diagnostics.py':'f10a2089e7408e70c09c42d2a3a33e805d1f8727ec641f5cc566bbeb9e13331d',
  'live_acceptance.py':'5896fca66bdfbec1cf781c9444e0c69befca5da53f3322b55f3bf39dd8aeeff9',
  'acceptance_check.sh':'9c7800a50668023794c7f1d8c2d1d93fc2fa01072ec91bf7bb78bca7b2d8e858'}
 CORE='3e23641059ff41a7edfb26b81b1738a3807f5737990f50dabed984fa448d5afa'
@@ -37,6 +38,7 @@ def update(source,code,wrapper,state):
         if dst.exists() and digest(dst) not in {OLD.get(src.name),digest(src)}:
             raise RuntimeError('Unknown installed acceptance version; preserve and review')
         if not dst.exists() and src.name!='account_diagnostics.py':raise RuntimeError('Existing acceptance installation required')
+    files=[(src,dst,mode) for src,dst,mode in files if not dst.exists() or digest(src)!=digest(dst)]
     lock=state/'read_only.lock';physical(lock)
     if not lock.exists():raise RuntimeError('Existing acceptance lock required; no runtime files created')
     with lock.open('r+b') as stream:

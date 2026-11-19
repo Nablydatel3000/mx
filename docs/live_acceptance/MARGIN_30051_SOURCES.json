@@ -1,0 +1,29 @@
+{
+  "checked_date": "2026-11-19",
+  "sources": [
+    {
+      "name": "error_catalog",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/errors.md",
+      "http_status": 200,
+      "sha256": "e00be19f4947af83455446d51999036481c6a2cfbada062b0df6e6154b0006e7",
+      "excerpt": "30051|INVALID_ARGUMENT|Account margin status is disabled|Для данного договора недоступна маржинальная торговля.<br/>Для выставления поручений на срочном рынке, необходимо включить маржинальную торговлю в приложении и терминале.|"
+    },
+    {
+      "name": "users_proto",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/users.proto",
+      "http_status": 200,
+      "sha256": "8c2df9196de89a7efa78fbf4c473046e3fc74d0f37fd020311506d51cd875eaa",
+      "excerpt": "message GetMarginAttributesRequest {\n\n  // Идентификатор счeта пользователя.\n  string account_id = 1 [(google.api.field_behavior) = REQUIRED];\n}"
+    },
+    {
+      "name": "users_guide",
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/head-users.md",
+      "http_status": 200,
+      "sha256": "be988596187951dfe9b25f98763354bdb0f78c48951fc2fb6004ee66e21120e0",
+      "excerpt": "## Получить маржинальные показатели по счёту\n\nВ T-Invest API пользователи могут использовать маржинальную торговлю.\n\nМаржинальная торговля — это режим, в котором можно совершать сделки не только со своими деньгами и \nценными бумагами, но и с активами, которые вы как бы берёте в долг у брокера. \n\n[Подробнее о маржинальной торговле](https://www.tbank.ru/invest/help/brokerage/account/margin/)\n\nЧтобы получить показатели маржинальной торговли, используйте метод [getMarginAttributes](/investAPI/users#getmarginattributes). Он возвращает следующие параметры: \n\n* `liquid_portfolio` — стоимость плановых позиций активов, которые признаны ликвидными — то есть для которых определены ставки риска.\n* `starting_margin` — сумма модулей стоимостей плановых позиций активов, которые признаны ликвидными, умноженные на начальные ставки риска.\n* `minimal_margin` — сумма модулей стоимостей плановых позиций активов, которые признаны ликвидными, умноженные на минимальные ставки риска.\n* `funds_sufficiency_level` — уровень достаточности средств. Формула расчёта: `(Стоимость портфеля − минимальная маржа) ÷ (Начальная маржа – минимальная маржа)`. Округляется до двух знаков после запятой.\n* `amount_of_missing_funds` — объём недостающих средств. Формула расчёта: `starting_margin − liquid_portfolio`. \n* `corrected_Margin` — начальная маржа, в которой плановые позиции рассчитываются с учётом активных заявок на покупку позиций лонг или продажу позиций шорт.\n\n"
+    }
+  ],
+  "authorized_broker_request_made": false,
+  "jino_access_available": false,
+  "conclusion": "30051 means account margin status disabled. Catalog explicitly requires enabling margin trading for derivatives orders. Request requires account_id only; no account-age waiting period or activation SLA is specified here."
+}

@@ -38,6 +38,17 @@ class UpdateTests(unittest.TestCase):
         self.old.write_text('unknown local changes')
         with self.assertRaises(RuntimeError):self.update()
         self.assertEqual(self.wrapper.read_text(),'old wrapper')
+    def test_known_previous_diagnostic_module_can_be_updated(self):
+        helper=self.code/'src/gldrubf_bot/account_diagnostics.py';helper.write_text('old diagnostic')
+        self.old.write_bytes((self.source/'src/gldrubf_bot/live_acceptance.py').read_bytes())
+        self.wrapper.write_bytes((self.source/'deploy/live/acceptance_check.sh').read_bytes())
+        before=(self.old.stat().st_ino,self.wrapper.stat().st_ino)
+        with patch.dict(updater.OLD,{'account_diagnostics.py':updater.digest(helper)}):
+            backup=self.update()
+        self.assertEqual((backup/'account_diagnostics.py').read_text(),'old diagnostic')
+        self.assertEqual(helper.read_text(),'new account_diagnostics.py')
+        self.assertEqual(sorted(p.name for p in backup.iterdir()),['account_diagnostics.py'])
+        self.assertEqual(before,(self.old.stat().st_ino,self.wrapper.stat().st_ino))
     def test_busy_checker_refuses_update(self):
         import fcntl
         with (self.state/'read_only.lock').open('r+b') as stream:

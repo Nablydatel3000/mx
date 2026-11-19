@@ -37,6 +37,7 @@ class AcceptanceTests(unittest.TestCase):
         self.requests=[];self.balance=15000;self.position=0;self.go_long=1400;self.go_short=1400;self.capacity=2
         self.fee=D(10);self.account_changes={}
         self.bad_method=None;self.missing_margin=False;self.closed=False;self.no_complete=False
+        self.margin_api_error=None
         self.quote_lag=0;self.inject_future=False;self.existing_orders=False
         self.clock_backwards=False
         self.wrong_status_uid=False;self.bad_orders_type=False
@@ -46,6 +47,10 @@ class AcceptanceTests(unittest.TestCase):
     def transport(self,request,timeout):
         method=request.full_url.split('contract.v1.')[1];body=json.loads(request.data)
         self.requests.append((method,body))
+        if method=='UsersService/GetMarginAttributes' and self.margin_api_error is not None:
+            code,grpc=self.margin_api_error
+            payload=json.dumps(dict(code=grpc,description=code,message=TOKEN+' '+ACCOUNT)).encode()
+            raise urllib.error.HTTPError(request.full_url,400,TOKEN,{'Content-Type':'application/json'},io.BytesIO(payload))
         if method==self.bad_method:
             raise urllib.error.HTTPError(request.full_url,502,TOKEN,{'Content-Type':'text/html'},self.secret_body)
         now=self.now
@@ -393,6 +398,42 @@ class AcceptanceTests(unittest.TestCase):
         self.assertIn('account_snapshot',r['blockers'])
         self.assertEqual(r['statistics']['account_diagnostic']['failure']['reason'],'unclassified_validation_error')
         self.assertNotIn(TOKEN,json.dumps(r));self.assertNotIn(ACCOUNT,json.dumps(r))
+
+    def test_real_margin_disabled_code_blocks_even_with_15100_cash(self):
+        self.balance=15100;self.margin_api_error=('30051',3);self.capacity=11
+        r=self.collect();d=r['statistics']['account_diagnostic']
+        self.assertEqual(d['failure']['reason'],'broker_margin_trading_disabled')
+        self.assertEqual(d['failure_group'],'broker_account_restriction')
+        self.assertEqual(d['failure']['api_code'],30051)
+        self.assertEqual(d['methods']['OperationsService/GetPositions']['money']['rub_total'],'15100')
+        self.assertIsNone(d['snapshot']);self.assertEqual(d['availability_components_rub'],{})
+        self.assertIn('account_snapshot',r['blockers'])
+        for side in ('long','short'):
+            self.assertIn('capital_'+side,r['blockers'])
+            self.assertEqual(r['statistics']['capital_checks'][side]['evaluation'],'not_evaluated')
+        self.assertFalse(r['live_accepted']);self.assertEqual(r['order_submission_count'],0)
+        self.assertNotIn(TOKEN,json.dumps(r));self.assertNotIn(ACCOUNT,json.dumps(r))
+
+    def test_margin_request_uses_only_explicit_account_id_and_reads_once(self):
+        self.margin_api_error=('30051',3);r=self.collect()
+        requests=[p for m,p in self.requests if m=='UsersService/GetMarginAttributes']
+        self.assertEqual(requests,[dict(accountId=ACCOUNT)])
+        method=next(v for v in r['method_checks'] if v['method']=='UsersService/GetMarginAttributes')
+        self.assertEqual((method['http_status'],method['grpc_code'],method['api_code']),(400,3,30051))
+
+    def test_other_or_incomplete_codes_cannot_be_mislabelled_margin_disabled(self):
+        for error in (('30042',3),('30051',7),('unknown',3)):
+            with self.subTest(error=error):
+                self.margin_api_error=error;r=self.collect();d=r['statistics']['account_diagnostic']
+                self.assertEqual(d['failure']['reason'],'account_endpoint_failed')
+                self.assertFalse(d['snapshot_validated']);self.assertIn('capital_long',r['blockers'])
+
+    def test_manual_recheck_after_broker_returns_attributes_does_not_reuse_disabled_state(self):
+        self.margin_api_error=('30051',3);self.assertEqual(self.run_check()[0],2)
+        self.margin_api_error=None;self.assertEqual(self.run_check()[0],0)
+        r=acc.status(self.root,self.clock)['report'];self.assertTrue(r['statistics']['account_diagnostic']['snapshot_validated'])
+        self.assertIsNone(r['statistics']['account_diagnostic']['failure'])
+        self.assertFalse(r['live_accepted']);self.assertTrue(all(m in acc.READ_METHODS for m,p in self.requests))
 
 
 if __name__=='__main__':unittest.main()

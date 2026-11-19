@@ -18,6 +18,7 @@ import warnings
 from . import api
 from .account_diagnostics import inspect_account,SnapshotError
 from .market_diagnostics import inspect_calendar,CalendarError,price_bounds
+from .live_market import limit_status
 from .autonomous import history_age,same_window
 from .live import load_config,risk_check
 from .live_api import Broker,UID,integer,rub
@@ -161,12 +162,14 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
         stats['tick_price_points']=str(instrument.tick)
         stats['tick_amount_rub']=str(instrument.tick*number(margin['rub_per_point']))
     status=check('trading_status',lambda:broker.call('MarketDataService/GetTradingStatus',{'instrumentId':UID}))
+    status_allowed=False
     if status is not None:
         def status_schema():
             if status.get('instrumentUid')!=UID:raise DataError('Status UID mismatch')
             for key in ('apiTradeAvailableFlag','limitOrderAvailableFlag','marketOrderAvailableFlag'):
                 if key in status and type(status[key]) is not bool:raise DataError('Status flag type')
-        check('trading_status_schema',status_schema)
+            return limit_status(status,UID)
+        status_allowed=check('trading_status_schema',status_schema)
     last=check('last_prices',lambda:broker.call('MarketDataService/GetLastPrices',{'instrumentId':[UID],'lastPriceType':'LAST_PRICE_EXCHANGE'}))
     quote=None
     if last is not None:
@@ -237,7 +240,7 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
         checks.append(dict(check='order_state_runtime',result='not_tested',category='no_existing_request_uuid_no_probe_order_created'))
     finished=clock();market=dict(evaluated_at=iso(finished),tradable_now=False)
     if status is not None:
-        market['normal_api_limit_status']=status.get('instrumentUid')==UID and status.get('tradingStatus')=='SECURITY_TRADING_STATUS_NORMAL_TRADING' and status.get('apiTradeAvailableFlag') is True and status.get('limitOrderAvailableFlag') is True
+        market['normal_api_limit_status']=status_allowed is True
     if quote is not None:
         market.update(quote_time=iso(quote.time),quote_price=str(quote.price),
             quote_fresh=0<=(finished-quote.time).total_seconds()<=c['quote_max_age_seconds'])

@@ -21,9 +21,10 @@ class UpdateTests(unittest.TestCase):
         self.old=self.code/'src/gldrubf_bot/live_acceptance.py';self.old.write_text('old readonly')
         self.wrapper.write_text('old wrapper');(self.state/'read_only.lock').touch()
         (self.root/'config.json').write_text('existing private config');(self.root/'token').write_text('synthetic private token')
-        for path in ('src/gldrubf_bot/account_diagnostics.py','src/gldrubf_bot/market_diagnostics.py','src/gldrubf_bot/live_acceptance.py','deploy/live/acceptance_check.sh'):
+        for path in ('src/gldrubf_bot/account_diagnostics.py','src/gldrubf_bot/live_market.py','src/gldrubf_bot/market_diagnostics.py','src/gldrubf_bot/live_acceptance.py','deploy/live/acceptance_check.sh'):
             (self.source/path).write_text('new '+Path(path).name)
         self.enterContext(patch.object(updater,'CORE',updater.digest(self.core)))
+        self.enterContext(patch.object(updater,'FROZEN',{}))
         self.enterContext(patch.object(updater,'OLD',{'live_acceptance.py':updater.digest(self.old),'acceptance_check.sh':updater.digest(self.wrapper)}))
     def update(self):return updater.update(self.source,self.code,self.wrapper,self.state)
     def test_update_backup_and_repeat_preserve_unrelated_files(self):
@@ -38,6 +39,9 @@ class UpdateTests(unittest.TestCase):
         self.old.write_text('unknown local changes')
         with self.assertRaises(RuntimeError):self.update()
         self.assertEqual(self.wrapper.read_text(),'old wrapper')
+    def test_unknown_frozen_dependency_refuses_readonly_update(self):
+        with patch.object(updater,'FROZEN',{'api.py':'unknown'}),self.assertRaises(RuntimeError):self.update()
+        self.assertEqual(self.old.read_text(),'old readonly')
     def test_known_previous_diagnostic_module_can_be_updated(self):
         helper=self.code/'src/gldrubf_bot/account_diagnostics.py';helper.write_text('old diagnostic')
         self.old.write_bytes((self.source/'src/gldrubf_bot/live_acceptance.py').read_bytes())

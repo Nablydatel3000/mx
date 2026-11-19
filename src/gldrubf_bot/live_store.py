@@ -15,13 +15,24 @@ from .strategy import DailyClose,crossover
 from .live_api import UID,integer,rub
 from .operations import atomic_json
 
-TERMINAL={'FILL','REJECTED','CANCELLED'}
+TERMINAL={'FILL','REJECTED','CANCELLED','NOT_SENT'}
 STATUS={'EXECUTION_REPORT_STATUS_'+k:k for k in ('FILL','REJECTED','CANCELLED','NEW','PARTIALLYFILL')}
 
 
 class Store:
-    def __init__(self,path,config_hash,source_from,now):
+    def __init__(self,path,config_hash,source_from,now,*,allow_empty_new=False):
         self.path=Path(path).resolve();self.path.parent.mkdir(parents=True,exist_ok=True)
+        if self.path.exists() and self.path.stat().st_size==0 and not allow_empty_new:
+            raise DataError('Existing empty LIVE state; explicit new initialization required')
+        if self.path.exists() and self.path.stat().st_size:
+            # No old-state adoption, schema edits or rehashing before version verification.
+            con=sqlite3.connect(self.path.as_uri()+'?mode=ro',uri=True)
+            try:
+                row=con.execute('SELECT config_hash FROM live_meta WHERE id=1').fetchone()
+                if row is None or row[0]!=config_hash:raise DataError('LIVE state version mismatch; offline review required, no automatic migration')
+            except sqlite3.DatabaseError:
+                raise DataError('Unrecognized existing LIVE state; no automatic initialization') from None
+            finally:con.close()
         with self.db() as db:
             tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             required={'live_meta','live_bars','live_signals','live_orders','live_trades','live_events','live_snapshots'}
@@ -99,9 +110,13 @@ class Store:
                 raise DataError('LIVE payload corrupted')
             context=json.loads(r['context'])
             if not instant(context['window_from'])<=instant(r['created'])<instant(context['window_to']):raise DataError('LIVE dispatch window corrupted')
+            if context.get('status_gate')!='UID_NORMAL_API_LIMIT_CONFIRMED' or not instant(context['cycle_from'])<=instant(context['calendar_from'])<=instant(context['status_from'])<=instant(context['status_to'])<=instant(r['created']):
+                raise DataError('LIVE status evidence corrupted')
             sig=db.execute('SELECT * FROM live_signals WHERE day=?',(r['signal_day'],)).fetchone()
             if not sig or sig['target']*r['side']<=0 or instant(r['created'])<=instant(sig['known']):raise DataError('LIVE order signal causality')
             trades=list(db.execute('SELECT * FROM live_trades WHERE request_id=?',(r['request_id'],)))
+            if r['status']=='NOT_SENT' and (trades or r['executed'] or r['broker_id'] or r['commission'] is not None or r['service_commission'] is not None or r['cancel_requested']):
+                raise DataError('NOT_SENT has broker activity')
             if sum(t['qty'] for t in trades)!=r['executed'] or not 0<=r['executed']<=r['qty'] or (r['status']=='FILL' and r['executed']!=r['qty']):
                 raise DataError('LIVE execution quantity corrupted')
             for t in trades:
@@ -161,7 +176,8 @@ class Store:
 
     def intent(self,signal,phase,side,qty,before,payload,now,context):
         with self.db() as db:
-            if db.execute('SELECT 1 FROM live_orders WHERE status NOT IN (\'FILL\',\'CANCELLED\',\'REJECTED\')').fetchone():raise DataError('Existing LIVE order')
+            if db.execute('SELECT 1 FROM live_orders WHERE status NOT IN (\'FILL\',\'CANCELLED\',\'REJECTED\',\'NOT_SENT\')').fetchone():raise DataError('Existing LIVE order')
+            if db.execute("SELECT 1 FROM live_orders WHERE status='NOT_SENT'").fetchone():raise DataError('Unsent intent requires explicit review; no replacement')
             db.execute('''INSERT INTO live_orders(request_id,signal_day,phase,side,qty,before_pos,payload,created,status,context)
                 VALUES(?,?,?,?,?,?,?,?,'SENDING',?)''',(payload['orderId'],signal['day'],phase,side,qty,before,encoded(payload).decode(),iso(now),encoded(context).decode()))
         # A separate durable highwater prevents silently using an older SQLite
@@ -182,6 +198,15 @@ class Store:
                 if not response.get('orderId'):raise DataError('Missing broker order ID')
                 db.execute("UPDATE live_orders SET status='NEW',broker_id=? WHERE request_id=?",(response['orderId'],request_id))
 
+    def not_sent(self,request_id,now):
+        with self.db() as db:
+            row=db.execute('SELECT * FROM live_orders WHERE request_id=?',(request_id,)).fetchone()
+            if row is None or row['status']!='SENDING' or row['executed'] or row['broker_id'] or row['commission'] is not None or row['service_commission'] is not None or row['cancel_requested'] or db.execute('SELECT 1 FROM live_trades WHERE request_id=?',(request_id,)).fetchone():
+                raise DataError('Cannot certify intent as NOT_SENT')
+            db.execute("UPDATE live_orders SET status='NOT_SENT' WHERE request_id=?",(request_id,))
+            db.execute("UPDATE live_meta SET halt='PRE_HTTP_NOT_SENT_REVIEW' WHERE id=1")
+            db.execute("INSERT INTO live_events(time,category) VALUES(?,'PRE_HTTP_NOT_SENT_REVIEW')",(iso(now),))
+
     def record_order(self,request_id,raw,now):
         status=STATUS.get(raw.get('executionReportStatus'))
         # Preserve the broker's reported cumulative counts even if complete trade
@@ -192,6 +217,7 @@ class Store:
             request_and_instrument_match=raw.get('orderRequestId')==request_id and raw.get('instrumentUid')==UID),now)
         with self.db() as db:
             row=db.execute('SELECT * FROM live_orders WHERE request_id=?',(request_id,)).fetchone()
+            if row and row['status']=='NOT_SENT':raise DataError('Broker report contradicts NOT_SENT certificate')
             if not row or status is None or raw.get('orderRequestId')!=request_id or raw.get('instrumentUid')!=UID or raw.get('direction')!=('ORDER_DIRECTION_BUY' if row['side']==1 else 'ORDER_DIRECTION_SELL') or raw.get('orderType')!='ORDER_TYPE_LIMIT':
                 raise DataError('Broker order identity mismatch')
             qty=integer(raw.get('lotsExecuted','0'))

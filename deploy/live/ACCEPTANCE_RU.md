@@ -1,5 +1,9 @@
 # Приёмка на Jino без торговых заявок
 
+**Новая отдельная ветка fix/live-current-execution-safety:**
+[обновление только read-only приёмки](../../docs/live_execution_safety/JINO_READ_ONLY_RU.md).
+Переход старой LIVE SQLite на новый fingerprint не реализован и остаётся заблокированным.
+
 **Доступа Codex к Jino нет. Пользователь сообщил о выполненной установке и
 реальной read-only проверке; Codex не проверял VPS самостоятельно.** Для уже
 установленного контура сначала используйте [обновление диагностики счёта](../../docs/live_acceptance/ACCOUNT_SNAPSHOT_RU.md).

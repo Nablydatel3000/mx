@@ -22,6 +22,8 @@ from .models import DataError,UTC,instant,iso,number
 from .operations import atomic_json
 from .live_api import Broker,UID,quoted,integer
 from .live_store import Store,TERMINAL
+from .live_market import limit_status
+from .live_errors import DefinitelyNotSent
 
 ACK='LIVE_GLDRUBF_2_CONTRACTS_15000_RUB_EXCLUSIVE'
 ACCOUNT_LOCK_ROOT=Path('/var/lib/gldrubf-live/locks')
@@ -49,7 +51,7 @@ def load_config(path):
 def fingerprint(c):
     root=Path(__file__).parent
     software={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in
-        ('live.py','live_api.py','live_store.py','strategy.py','api.py','autonomous.py','locking.py','history.py')}
+        ('live.py','live_api.py','live_store.py','live_market.py','live_errors.py','strategy.py','api.py','autonomous.py','locking.py','history.py')}
     return hashlib.sha256(encoded(dict(config=c,software=software))).hexdigest()
 
 
@@ -91,10 +93,16 @@ class Controls:
                 raise DataError('LIVE dispatch context expired')
             context=getattr(self,'dispatch_context',None)
             if context is None:raise DataError('No fresh dispatch context')
-            checked,quote_time,book_time,calendar=context;now=self.clock()
+            checked,quote_time,book_time,calendar,status_from,status_to=context;now=self.clock()
             if now<checked or any((now-t).total_seconds()>self.config['quote_max_age_seconds'] or t>now for t in (quote_time,book_time)) or not all(same_window(calendar,now,t) for t in (quote_time,book_time)):
                 raise DataError('Dispatch market context expired')
             saved_context=json.loads(row['context'])
+            if not instant(saved_context['cycle_from'])<=now or (now-instant(saved_context['cycle_from'])).total_seconds()>self.config['snapshot_max_age_seconds']:
+                raise DataError('Dispatch cycle context expired')
+            if not status_from<=status_to<=checked<=now or (now-status_from).total_seconds()>self.config['quote_max_age_seconds']:
+                raise DataError('Dispatch status confirmation expired')
+            if saved_context.get('status_from')!=iso(status_from) or saved_context.get('status_to')!=iso(status_to):
+                raise DataError('Dispatch status evidence mismatch')
             if (instant(saved_context['window_to'])-now).total_seconds()<self.config['min_session_remaining_seconds']:raise DataError('Dispatch too close to phase boundary')
         elif method=='OrdersService/CancelOrder':
             if row['status'] in TERMINAL:raise DataError('Cannot cancel terminal order')
@@ -162,7 +170,7 @@ class Engine:
                 self.stop('POSITION_RECONCILIATION_REQUIRED');return 'HALTED'
         # Rejections/cancellations, including terminal partial fills, never spawn replacements.
         orders=self.store.orders()
-        if any(r['status'] in ('REJECTED','CANCELLED') for r in orders):
+        if any(r['status'] in ('REJECTED','CANCELLED','NOT_SENT') for r in orders):
             self.stop('REJECTED_OR_CANCELLED_REVIEW');return 'HALTED'
         active=self.store.orders(active=True)
         if len(active)>1:raise DataError('Multiple active intents')
@@ -183,7 +191,7 @@ class Engine:
         calendar=self.broker.read.current_sessions(instrument.exchange,now)
         quote=self.broker.read.quote(instrument,self.clock)
         status=self.broker.call('MarketDataService/GetTradingStatus',{'instrumentId':UID})
-        if status.get('instrumentUid')!=UID or status.get('tradingStatus')!='SECURITY_TRADING_STATUS_NORMAL_TRADING' or not status.get('limitOrderAvailableFlag') or not status.get('apiTradeAvailableFlag'):
+        if not limit_status(status,UID):
             return 'WAIT_MARKET'
         book=self.broker.call('MarketDataService/GetOrderBook',{'instrumentId':UID,'depth':1})
         at=self.clock()
@@ -209,7 +217,17 @@ class Engine:
         if phase=='OPEN':
             risk=risk_check(c,account,margin,side,fee);self.store.snapshot('CAPITAL',risk,self.clock())
             if not risk['allowed']:return 'WAIT_CAPITAL_TWO_CONTRACTS'
+        # Financial/reconciliation reads cannot authorize use of an old market status.
+        # Refresh calendar first, then instrument status as the last broker read.
+        calendar_from=self.clock()
+        calendar=self.broker.read.current_sessions(instrument.exchange,calendar_from)
+        status_from=self.clock()
+        final_status=self.broker.call('MarketDataService/GetTradingStatus',{'instrumentId':UID})
+        status_to=self.clock()
+        if not limit_status(final_status,UID):return 'WAIT_MARKET'
         current=self.clock()
+        if not calendar_from<=status_from<=status_to<=current or (current-status_from).total_seconds()>c['quote_max_age_seconds']:
+            return 'WAIT_REFRESH'
         if current<start or (current-start).total_seconds()>c['snapshot_max_age_seconds'] or any((current-t).total_seconds()>c['quote_max_age_seconds'] for t in (quote.time,book_time)) or not same_window(calendar,current,quote.time) or not same_window(calendar,current,book_time):return 'WAIT_REFRESH'
         age=self.latest_age(current)
         if not age:return 'WAIT_HISTORY'
@@ -219,11 +237,18 @@ class Engine:
             direction='ORDER_DIRECTION_BUY' if side==1 else 'ORDER_DIRECTION_SELL',orderType='ORDER_TYPE_LIMIT',
             orderId=str(uuid4()),price=quoted(price),priceType='PRICE_TYPE_POINT',
             timeInForce='TIME_IN_FORCE_FILL_AND_KILL',confirmMarginTrade=False)
-        context=dict(window_from=iso(span[0]),window_to=iso(span[1]),quote_time=iso(quote.time),book_time=iso(book_time))
+        context=dict(window_from=iso(span[0]),window_to=iso(span[1]),quote_time=iso(quote.time),book_time=iso(book_time),
+            status_from=iso(status_from),status_to=iso(status_to),calendar_from=iso(calendar_from),cycle_from=iso(start),
+            status_gate='UID_NORMAL_API_LIMIT_CONFIRMED')
+        selection=getattr(self.broker.read,'last_calendar_evidence',None)
+        if isinstance(selection,dict):context['calendar_selection']=selection
         self.store.intent(signal,phase,side,qty,position,payload,current,context)
-        self.controls.dispatch_context=(current,quote.time,book_time,calendar)
+        self.controls.dispatch_context=(current,quote.time,book_time,calendar,status_from,status_to)
         try:self.store.ack(payload['orderId'],self.broker.post(payload),self.clock())
-        except Exception:
+        except DefinitelyNotSent:
+            self.store.not_sent(payload['orderId'],self.clock())
+            return 'HALTED'
+        except BaseException:
             with self.store.db() as db:db.execute("UPDATE live_orders SET status='UNKNOWN' WHERE request_id=?",(payload['orderId'],))
             self.stop('UNKNOWN_POST_OUTCOME');raise
         return 'ORDER_SENT_'+phase
@@ -330,7 +355,7 @@ def main(argv=None):
             stack.enter_context(runner_lock(ACCOUNT_LOCK_ROOT/(digest+'.lock')))
             check=stack.enter_context(runner_lock(dbpath))
             source=datetime.combine(now.date(),daytime.min,UTC)-timedelta(days=730)
-            store=Store(dbpath,fingerprint(c),source,now)
+            store=Store(dbpath,fingerprint(c),source,now,allow_empty_new=args.command=='init' and not initialized.exists())
             if initialized.exists() and json.loads(initialized.read_text()).get('ledger_id')!=store.meta()['ledger_id']:
                 raise DataError('LIVE initialized marker belongs to another ledger')
             atomic_json(initialized,dict(ledger_id=store.meta()['ledger_id']))
@@ -366,7 +391,7 @@ def main(argv=None):
                 ops=broker.operations(store.meta()['started'],datetime.now(UTC));store.snapshot('OPERATIONS',ops,datetime.now(UTC))
                 if args.command=='resume':
                     if args.acknowledge!=ACK or not args.allow_live:raise DataError('Explicit resume acknowledgement required')
-                    if any(r['status'] in ('UNKNOWN','SENDING','REJECTED','CANCELLED') for r in store.orders()):raise DataError('Unresolved/terminal adverse order requires audited recovery, no blind resume')
+                    if any(r['status'] in ('UNKNOWN','SENDING','REJECTED','CANCELLED','NOT_SENT') for r in store.orders()):raise DataError('Unresolved/terminal adverse order requires audited recovery, no blind resume')
                     # Temporarily ignoring STOP is not allowed: remove only after verified reconciliation and explicit command.
                     permission=json.loads((state/'LIVE_PERMISSION.json').read_text())
                     if permission['ledger_id']!=store.meta()['ledger_id'] or permission['config_hash']!=fingerprint(c) or not now<instant(permission['expires_at']):raise DataError('Resume permission invalid')

@@ -12,6 +12,8 @@ from decimal import Decimal
 from . import api
 from .api_error_codes import read_error_codes,extract_codes
 from .models import DataError,number,instant,iso,UTC
+from .live_market import LiveReadClient
+from .live_errors import DefinitelyNotSent
 
 UID='b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6'
 READ={'UsersService/GetAccounts','UsersService/GetMarginAttributes','OperationsService/GetPositions',
@@ -50,19 +52,23 @@ def quoted(value):
 
 class Broker:
     def __init__(self,account,*,transport=None,write_guard=None):
-        self.account_id=account;self.read=api.ReadOnlyClient(transport=transport,attempts=1)
+        self.account_id=account;self.read=LiveReadClient(transport=transport,attempts=1)
         self.transport=transport or urllib.request.build_opener(api.NoRedirect()).open
         self.write_guard=write_guard
 
     def call(self,method,payload):
         if method in api.ALLOWED:return self.read.call(method,payload)
-        if method not in READ|WRITE:raise DataError('LIVE endpoint prohibited')
-        if payload.get('accountId',self.account_id)!=self.account_id:raise DataError('Wrong account')
-        if method in WRITE:
-            if self.write_guard is None:raise DataError('LIVE mutations disabled')
-            self.write_guard(method,payload)
-        req=urllib.request.Request(api.BASE+method,json.dumps(payload).encode(),
-            {'Authorization':'Bearer '+self.read._token,'Content-Type':'application/json','Accept':'application/json'},method='POST')
+        try:
+            if method not in READ|WRITE:raise DataError('LIVE endpoint prohibited')
+            if payload.get('accountId',self.account_id)!=self.account_id:raise DataError('Wrong account')
+            if method in WRITE:
+                if self.write_guard is None:raise DataError('LIVE mutations disabled')
+                self.write_guard(method,payload)
+            req=urllib.request.Request(api.BASE+method,json.dumps(payload).encode(),
+                {'Authorization':'Bearer '+self.read._token,'Content-Type':'application/json','Accept':'application/json'},method='POST')
+        except Exception:
+            if method=='OrdersService/PostOrder':raise DefinitelyNotSent('PostOrder refused before HTTP transport') from None
+            raise
         status=None;ctype='unknown'
         try:
             with self.transport(req,timeout=20) as response:
@@ -81,6 +87,9 @@ class Broker:
             finally:exc.close()
             raise error from None
         except api.APIError:raise
+        except DefinitelyNotSent:
+            # Transport has been entered: even this exception type is NOT a certificate.
+            raise api._failure(method,status,ctype,'transport_outcome_uncertain') from None
         except (OSError,ValueError,http.client.HTTPException) as exc:
             raise api._failure(method,status,ctype,'transport_or_request_error') from None
 

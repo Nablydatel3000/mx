@@ -149,7 +149,7 @@ class LiveEngineTests(SQLiteResourceTestCase):
     def test_crash_after_persist_before_http_does_not_resend_unknown_uuid(self):
         self.signal();self.broker.post=Mock(side_effect=SystemExit(7))
         with self.assertRaises(SystemExit):self.engine.step()
-        self.restore();self.assertEqual(self.store.orders()[0]['status'],'SENDING')
+        self.restore();self.assertEqual(self.store.orders()[0]['status'],'UNKNOWN')
         with self.assertRaises(APIError):self.engine.reconcile()
         self.assertFalse(self.broker.posts)
     def test_rejection_halts_without_retry(self):

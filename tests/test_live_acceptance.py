@@ -476,7 +476,9 @@ class AcceptanceTests(unittest.TestCase):
     def test_standalone_calendar_command_only_reads_instrument_and_schedules(self):
         self.assertEqual(self.run_check()[0],0);old=(self.root/'report.json').read_bytes();self.requests=[]
         def factory(account):return REAL_CLASS(account,transport=self.transport,clock=self.clock)
+        inspect=acc.inspect_calendar
         with patch.object(acc,'ReadOnlyBroker',side_effect=factory), \
+             patch.object(acc,'inspect_calendar',side_effect=lambda b,e,t:inspect(b,e,self.now)), \
              patch.object(acc.sys,'stdin',SimpleNamespace(buffer=io.BytesIO((TOKEN+'\n').encode()))),contextlib.redirect_stdout(io.StringIO()) as output:
             code=acc.main(['calendar-diagnostics','--credential-stdin','--config',str(self.cfg),'--state',str(self.root)])
         self.assertEqual(code,0)

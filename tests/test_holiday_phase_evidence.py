@@ -62,11 +62,14 @@ class HolidayPhaseEvidenceTests(unittest.TestCase):
         self.assertTrue(request.full_url.endswith('InstrumentsService/TradingSchedules'))
         self.assertEqual(json.loads(request.data)['exchange'],CODE)
 
-    def test_live_acceptance_reports_actual_fragment_reason_and_day_without_order(self):
-        transport=Mock(return_value=FakeResponse(json.dumps(response()).encode()))
+    def test_live_acceptance_excludes_future_but_blocks_current_holiday_without_order(self):
+        transport=Mock(side_effect=lambda *a,**k:FakeResponse(json.dumps(response()).encode()))
         with patch.dict(os.environ,{'T_INVEST_TOKEN':SECRET}):
             broker=ReadOnlyBroker('synthetic-account',transport=transport)
-        with self.assertRaises(CalendarError) as cm:broker.current_calendar(CODE,NOW)
+        calendar=broker.current_calendar(CODE,NOW)
+        self.assertTrue(any(day.contains(NOW) for day in calendar.values()))
+        self.assertEqual(broker.calendar_diagnostic['selection']['excluded_record_indexes'],[1,2])
+        with self.assertRaises(CalendarError) as cm:broker.current_calendar(CODE,instant('2026-11-21T10:00:00Z'))
         report=broker.calendar_diagnostic
         self.assertEqual(safe_error(cm.exception),dict(category='calendar_validation_error',reason='unknown_detailed_phase'))
         self.assertEqual([d['parse_ok'] for d in report['days']],[True,True,False])
@@ -74,9 +77,9 @@ class HolidayPhaseEvidenceTests(unittest.TestCase):
         self.assertEqual(report['days'][2]['intervals'][0]['type'],HOLIDAY)
         self.assertFalse(report['calendar_validated']);self.assertFalse(report['inside_confirmed_window'])
         self.assertNotIn(SECRET,json.dumps(report));self.assertNotIn('synthetic-account',json.dumps(report))
-        self.assertEqual(len(broker.calls),1)
+        self.assertEqual(len(broker.calls),2)
         self.assertEqual(broker.calls[0]['method'],'InstrumentsService/TradingSchedules')
-        transport.assert_called_once()
+        self.assertEqual(transport.call_count,2)
 
     def test_holiday_alone_and_invented_prefixes_remain_unsupported(self):
         for kind in (HOLIDAY,'holiday_trading_session','holiday_trading_session_evening',

@@ -3,8 +3,26 @@ import re
 from . import api
 from .diagnose_schedule_snapshot import LEGACY,utc_stamp
 from .models import DataError,MOSCOW,instant,iso,number
+from .live_market import execution_request,select_sessions
 
 REASONS={
+ 'Execution section absent or ambiguous':'missing_or_ambiguous_exchange',
+ 'Execution calendar coverage missing':'calendar_coverage_missing',
+ 'Execution detailed bounds missing':'missing_detailed_intervals',
+ 'Execution regular/legacy contradiction':'detailed_legacy_contradiction',
+ 'Incomplete execution legacy pair':'incomplete_legacy_pair',
+ 'Nonpositive execution legacy pair':'nonpositive_legacy_pair',
+ 'Conflicting execution date records':'conflicting_day_records',
+ 'Nontrading day contains execution intervals':'nontrading_with_intervals',
+ 'Execution detailed overlap':'overlapping_detailed_intervals',
+ 'Overlapping execution dates':'overlapping_calendar_records',
+ 'Invalid execution calendar day':'invalid_day_object',
+ 'Invalid execution calendar flag':'invalid_trading_day_flag',
+ 'Invalid execution detailed interval':'invalid_detailed_interval_shape',
+ 'Nonpositive execution detailed bounds':'nonpositive_detailed_interval',
+ 'Unsupported calendar precision':'unsupported_timestamp_precision',
+ 'Incomplete execution evening auction':'evening_auction_missing_session',
+ 'Nonpositive execution evening auction':'evening_auction_invalid_bounds',
  'Missing calendar trading flag':'invalid_trading_day_flag',
  'Calendar precision exceeds supported microseconds':'unsupported_timestamp_precision',
  'Trading day without legacy envelope for detailed-session validation':'missing_legacy_envelope',
@@ -71,7 +89,7 @@ def day_evidence(raw,index,token=''):
 
 
 def inspect_calendar(client,exchange,now):
-    now=instant(now);payload=api.current_schedule_request(exchange,now)
+    now=instant(now);payload=execution_request(exchange,now)
     response=client.call('InstrumentsService/TradingSchedules',payload)
     rows=response.get('exchanges',[]) if isinstance(response,dict) else None
     matches=[r for r in rows if isinstance(r,dict) and api.exchange_matches(r.get('exchange'),exchange)] if isinstance(rows,list) else []
@@ -92,17 +110,12 @@ def inspect_calendar(client,exchange,now):
         days_truncated=isinstance(raw_days,list) and len(raw_days)>32,
         calendar_validated=False,inside_confirmed_window=False,end_semantics='start_inclusive_end_exclusive',
         live_accepted=False)
-    cached=api.ReadOnlyClient.__new__(api.ReadOnlyClient);cached._token=''
-    def replay(method,request):
-        if method!='InstrumentsService/TradingSchedules' or request!=payload:raise DataError('Unexpected diagnostic replay')
-        return response
-    cached.call=replay
-    try:calendar=api.ReadOnlyClient.current_sessions(cached,exchange,now)
+    try:calendar,selection=select_sessions(response,exchange,now)
     except (DataError,KeyError,TypeError,ValueError,AttributeError) as exc:
         report.update(failure=dict(reason=reason(exc)),state='calendar_validation_error');return None,report
     windows=[(a,b) for d in calendar.values() for a,b in d.windows]
     inside=any(a<=now<b for a,b in windows)
-    report.update(calendar_validated=True,inside_confirmed_window=inside,
+    report.update(calendar_validated=True,validation_scope='current_execution_only',selection=selection,inside_confirmed_window=inside,
         has_current_utc_date_label=now.date() in calendar,
         state='inside_confirmed_window' if inside else 'outside_confirmed_windows',
         windows_utc=[[iso(a),iso(b)] for a,b in windows],failure=None)

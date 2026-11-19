@@ -1,0 +1,73 @@
+19.11.2026. Base 96cd8e9; branch fix/live-current-execution-safety.
+All broker calls MOCKED; synthetic credentials and permissions in temporary test directories only.
+No real token, broker order/cancel, activation, Jino connection or deployment.
+
+$ python3 --version
+Python 3.12.14
+
+exit_code=0
+
+$ python3 -W error::ResourceWarning -m unittest discover -s tests -q
+----------------------------------------------------------------------
+Ran 386 tests in 2.073s
+
+OK
+
+exit_code=0
+
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+----------------------------------------------------------------------
+Ran 386 tests in 2.094s
+
+OK
+
+exit_code=0
+
+$ python3 tests/verify_readonly_overlay.py
+Updated read-only module imports and handles future holiday on frozen old core; HTTP fully mocked; writes denied.
+Exact 96cd8e9 overlay/repeat PASSED; no trading core, config, token, SQLite or service changed.
+
+exit_code=0
+
+$ /usr/bin/python3.13 tests/verify_readonly_overlay.py
+Updated read-only module imports and handles future holiday on frozen old core; HTTP fully mocked; writes denied.
+Exact 96cd8e9 overlay/repeat PASSED; no trading core, config, token, SQLite or service changed.
+
+exit_code=0
+
+$ python3 -m compileall -q src tests deploy/live/update_readonly.py
+
+exit_code=0
+
+$ bash -n deploy/live/install_readonly.sh
+
+exit_code=0
+
+$ sh -n deploy/live/acceptance_check.sh
+
+exit_code=0
+
+$ git diff --check
+
+exit_code=0
+
+PAPER/shared source unchanged: src/gldrubf_bot/api.py SHA256=22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad
+PAPER/shared source unchanged: src/gldrubf_bot/autonomous.py SHA256=e242ddd5ebdb201bd314441a4d7b5e0c385df2584070fc482d25d3416ce9dacd
+PAPER/shared source unchanged: src/gldrubf_bot/strategy.py SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+PAPER/shared source unchanged: src/gldrubf_bot/engine.py SHA256=ce8cbce68ef80e11cd335e42e5adc8ef3c3e8e679e8ada30d80d5f0fbcbb79cc
+PAPER/shared source unchanged: src/gldrubf_bot/models.py SHA256=5fd937b351a117c3d45f6d37c08ca0e824e8d612fce4be29cc40935807af9329
+PAPER/shared source unchanged: src/gldrubf_bot/history.py SHA256=3b4599fdf6fa7d1d960fc43d85244b9a3546b1b8fe01719a8e6aca0631e7e2f3
+PAPER/shared source unchanged: src/gldrubf_bot/cli.py SHA256=bf46afe8a426753a978a14ca55eb092d2897db4f3cdf6c3250493489d8e63e86
+PAPER/shared source unchanged: src/gldrubf_bot/vps.py SHA256=0c75871ce86b8b49eb2ecf3d56d0cd4d1f3ccc937844caa5e9205105ac6289cd
+PAPER/shared source unchanged: src/gldrubf_bot/locking.py SHA256=eded44812b11cba29f6bb70901c97d540d802cf246c04249ed2e927e3b7932a9
+PAPER/shared source unchanged: src/gldrubf_bot/research.py SHA256=2ea0966355bf917da38f4588b87b56aa037f71fc6595a04c473e0dff92e1f931
+PAPER/shared source unchanged: src/gldrubf_bot/operations.py SHA256=fe3b77233edef78d5b4a81e2b5b3aa68b0a82323e8881212c4e420b75b69ebc5
+PAPER deployment, LIVE service and all example risk/price/fee configurations unchanged.
+Legacy LIVE database migration NOT implemented or accepted; mismatching fingerprint rejected read-only.
+Same-version pending/partial/UNKNOWN/NOT_SENT recovery covered by offline tests. Actual old database not inspected; cross-version LIVE upgrade remains BLOCKED.
+Windows/CI execution not claimed.

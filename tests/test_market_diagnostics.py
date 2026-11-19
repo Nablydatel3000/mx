@@ -25,7 +25,8 @@ class MarketDiagnosticsTests(unittest.TestCase):
         days=[reported_day('2026-11-'+n) for n in ('17','18','19')]
         calendar,r=self.inspect(days)
         self.assertTrue(r['calendar_validated']);self.assertTrue(r['inside_confirmed_window'])
-        self.assertEqual([len(d.windows) for d in calendar.values()],[3,3,3])
+        self.assertEqual([len(d.windows) for d in calendar.values()],[3,3])
+        self.assertEqual(r['selection']['excluded_record_indexes'],[0])
         self.assertEqual([d['intervals_count'] for d in r['days']],[9,9,9])
         self.assertEqual(r['exchange_summary']['casefold_matches'],1)
         self.assertEqual(r['exchange_summary']['requested_exchange'],CODE)
@@ -65,10 +66,12 @@ class MarketDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(r['failure']['reason'],reason);self.assertEqual(r['days'][0]['reason'],reason)
                 self.assertFalse(r['inside_confirmed_window']);self.assertEqual(r['days'][0]['index'],0)
 
-    def test_bad_future_day_is_not_silently_ignored_to_allow_current_day(self):
+    def test_unknown_future_phase_is_excluded_only_with_absolute_proof(self):
         future=reported_day('2026-11-20');future['intervals'][0]['type']='unknown_phase'
         c,r=self.inspect([reported_day('2026-11-19'),future])
-        self.assertIsNone(c);self.assertTrue(r['days'][0]['parse_ok']);self.assertFalse(r['days'][1]['parse_ok'])
+        self.assertIsNotNone(c);self.assertTrue(r['days'][0]['parse_ok']);self.assertFalse(r['days'][1]['parse_ok'])
+        self.assertEqual(r['selection']['excluded_record_indexes'],[1])
+        self.assertEqual(r['validation_scope'],'current_execution_only')
 
     def test_nontrading_day_is_valid_and_never_authorizes_execution(self):
         c,r=self.inspect([dict(date='2026-11-19T00:00:00Z',isTradingDay=False)])

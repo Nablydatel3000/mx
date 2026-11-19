@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [gldrubf-v1-paper-api, fix/issue-2-forward-paper-vps, feature/gldrubf-live-gated]
+    branches: [gldrubf-v1-paper-api, fix/issue-2-forward-paper-vps, feature/gldrubf-live-gated, fix/live-current-execution-safety]
   pull_request:
     branches: [main]
   workflow_dispatch:

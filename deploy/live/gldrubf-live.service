@@ -10,12 +10,14 @@ Type=simple
 User=gldrubf-live
 Group=gldrubf-live
 WorkingDirectory=/opt/gldrubf-live/mx
-ExecStart=/usr/bin/python3 -m src.gldrubf_bot.live run --allow-live --credential-file %d/trading-token
+ExecStart=/usr/bin/python3 -m src.gldrubf_bot.live_credential_entrypoint run --allow-live
 LoadCredential=trading-token:/etc/gldrubf-live/trading-token
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 StateDirectory=gldrubf-live
 StateDirectoryMode=0700
+RuntimeDirectory=gldrubf-live-credential
+RuntimeDirectoryMode=0700
 UMask=0077
 Restart=on-failure
 RestartPreventExitStatus=78

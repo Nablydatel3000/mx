@@ -1,0 +1,16 @@
+{
+  "reference": "0f52907",
+  "unchanged": true,
+  "sha256": {
+    "live.py": "ea5524e1b6b367a30f960f787dd5ad52e6ef58b03c95a3ddb2075fad0202c475",
+    "live_api.py": "dde6116ff327d72b6f4ff09c179bd23fc80d32b829fa56cb3fd6cf4e176edf3e",
+    "live_store.py": "1429cf31f775ba36c7e026fbcad63218c9316e271204b9fffbea24b9b78bbad8",
+    "live_market.py": "a82e3f29e8050a2db663caac534c50a36247e4c2779699ea7acbc981d612143e",
+    "live_errors.py": "459e34519030438b8b39c6016d4f98df516e2c4520463aaa0df36caba98fb7dd",
+    "strategy.py": "87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313",
+    "api.py": "22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad",
+    "autonomous.py": "e242ddd5ebdb201bd314441a4d7b5e0c385df2584070fc482d25d3416ce9dacd",
+    "locking.py": "eded44812b11cba29f6bb70901c97d540d802cf246c04249ed2e927e3b7932a9",
+    "history.py": "3b4599fdf6fa7d1d960fc43d85244b9a3546b1b8fe01719a8e6aca0631e7e2f3"
+  }
+}

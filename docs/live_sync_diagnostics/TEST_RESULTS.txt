@@ -1,0 +1,58 @@
+19.11.2026; base 0f52907; fix/live-sync-safe-diagnostics.
+Actual broker HTTP fully mocked; synthetic credentials only. No Jino/deployment, real order/cancel, activation or state reset.
+$ python3 --version
+Python 3.12.14
+
+exit_code=0
+$ python3 -W error::ResourceWarning -m unittest discover -s tests -q
+----------------------------------------------------------------------
+Ran 402 tests in 3.118s
+
+OK
+
+exit_code=0
+$ /usr/bin/python3.13 --version
+Python 3.13.5
+
+exit_code=0
+$ /usr/bin/python3.13 -W error::ResourceWarning -m unittest discover -s tests -q
+----------------------------------------------------------------------
+Ran 402 tests in 3.204s
+
+OK
+
+exit_code=0
+$ python3 -m compileall -q src/gldrubf_bot/diagnose_live_sync.py tests/test_diagnose_live_sync.py
+
+exit_code=0
+$ python3 -m src.gldrubf_bot.diagnose_live_sync --help
+usage: diagnose_live_sync.py [-h] [--config CONFIG] [--state STATE]
+                             [--credential-file CREDENTIAL_FILE]
+
+Read-only sync diagnosis for 0f52907. No arming, writes or migration. Real
+state is opened mode=ro and copied to :memory:. Only Engine.reconcile and
+statistics run against that copy. The broker has an independent read seal.
+This module is deliberately outside the trading fingerprint.
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --state STATE
+  --credential-file CREDENTIAL_FILE
+
+exit_code=0
+$ git diff --check
+
+exit_code=0
+Unchanged fingerprint source src/gldrubf_bot/live.py SHA256=ea5524e1b6b367a30f960f787dd5ad52e6ef58b03c95a3ddb2075fad0202c475
+Unchanged fingerprint source src/gldrubf_bot/live_api.py SHA256=dde6116ff327d72b6f4ff09c179bd23fc80d32b829fa56cb3fd6cf4e176edf3e
+Unchanged fingerprint source src/gldrubf_bot/live_store.py SHA256=1429cf31f775ba36c7e026fbcad63218c9316e271204b9fffbea24b9b78bbad8
+Unchanged fingerprint source src/gldrubf_bot/live_market.py SHA256=a82e3f29e8050a2db663caac534c50a36247e4c2779699ea7acbc981d612143e
+Unchanged fingerprint source src/gldrubf_bot/live_errors.py SHA256=459e34519030438b8b39c6016d4f98df516e2c4520463aaa0df36caba98fb7dd
+Unchanged fingerprint source src/gldrubf_bot/strategy.py SHA256=87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313
+Unchanged fingerprint source src/gldrubf_bot/api.py SHA256=22edc672ffdf8ef542d68fca304aa94d5ccdf5f5b3fd879d43b2a420783e27ad
+Unchanged fingerprint source src/gldrubf_bot/autonomous.py SHA256=e242ddd5ebdb201bd314441a4d7b5e0c385df2584070fc482d25d3416ce9dacd
+Unchanged fingerprint source src/gldrubf_bot/locking.py SHA256=eded44812b11cba29f6bb70901c97d540d802cf246c04249ed2e927e3b7932a9
+Unchanged fingerprint source src/gldrubf_bot/history.py SHA256=3b4599fdf6fa7d1d960fc43d85244b9a3546b1b8fe01719a8e6aca0631e7e2f3
+Fingerprint equals exact 0f52907 computation; no new migration or stored hash edit. Diagnostic module excluded by existing fingerprint definition.
+Deployment scripts/services/config unchanged. Source state/token/marker bytes unchanged across diagnostic tests, halt preserved; only memory clone updated. No actual API/Jino result, Windows or CI result claimed.

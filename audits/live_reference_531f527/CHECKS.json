@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-19",
+  "runtime_commit": "0f529070ffe362acb8b568b2ea2b16d10d606d44",
+  "python": "3.12.14",
+  "platform": "Linux",
+  "tests": [
+    "tests.test_live.LiveEngineTests.test_timeout_after_acceptance_is_never_automatically_reposted",
+    "tests.test_live.LiveEngineTests.test_crash_after_persist_before_http_does_not_resend_unknown_uuid",
+    "tests.test_live.LiveEngineTests.test_repeated_signal_and_filled_restart_no_new_order",
+    "tests.test_live.LiveEngineTests.test_partial_fill_restart_finishes_same_order_without_duplicate",
+    "tests.test_live.LiveEngineTests.test_partial_cancel_records_real_position_and_halts",
+    "tests.test_live.LiveEngineTests.test_reversal_waits_for_full_close_and_broker_flat",
+    "tests.test_live.LiveEngineTests.test_foreign_order_or_position_never_adopted",
+    "tests.test_live.LiveEngineTests.test_confirmed_fill_but_lagging_position_blocks_opposite_open",
+    "tests.test_live.LiveEngineTests.test_missing_stage_details_block_instead_of_inventing_fill",
+    "tests.test_live.LiveEngineTests.test_old_sqlite_copy_is_refused_by_external_intent_highwater",
+    "tests.test_live.LiveEngineTests.test_same_account_second_state_directory_is_locked",
+    "tests.test_live.LiveEngineTests.test_two_contract_order_has_limit_bound_and_independent_gates",
+    "tests.test_live.LiveEngineTests.test_kill_revocation_and_ttl_cancel_only_owned_order",
+    "tests.test_live.LiveEngineTests.test_expired_permission_or_absent_flag_cannot_send",
+    "tests.test_live.BrokerReadTests.test_position_over_two_other_asset_or_mismatched_echo_refused",
+    "tests.test_live_execution_safety.ExecutionSafetyTests.test_not_sent_is_durable_and_cannot_be_repeated_after_restart",
+    "tests.test_live_execution_safety.ExecutionSafetyTests.test_partial_and_pending_survive_restart_without_new_uuid",
+    "tests.test_live_execution_safety.ExecutionSafetyTests.test_transport_timeout_is_unknown_and_never_repeated",
+    "tests.test_live_execution_safety.QuoteAndTransportTests.test_same_exception_from_inside_transport_is_not_a_no_send_certificate"
+  ],
+  "tests_run": 19,
+  "errors": 0,
+  "failures": 0,
+  "result": "OK",
+  "observed_run_seconds": 0.148,
+  "scope": [
+    "no_duplicate_orders_on_uncertainty",
+    "broker_position_reconciliation_on_restart",
+    "max_two_contracts_and_new_order_stop"
+  ],
+  "broker_responses": "MOCKS ONLY",
+  "live_runtime_enabled": false,
+  "new_runtime_checks_or_functions_added": false
+}

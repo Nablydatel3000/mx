@@ -1,0 +1,52 @@
+{
+  "reference_commit": "531f5276b1e90ae54e2721b22e1751f6920f92af",
+  "runtime_commit": "0f529070ffe362acb8b568b2ea2b16d10d606d44",
+  "source_archive_sha256": "498e4aacb2da1d041a93efa34de807945f171fd44791541a14735a279e05ee7d",
+  "source_hashes": {
+    "src/gldrubf_bot/strategy.py": "87b9ed31e8d7ecb69aa79e4255fb75962d928e63f3513f630c01477696d26313",
+    "audits/gldrubf_real_history/audit.py": "c6b587246fce39b08032ac8ad505e72e61b0c319cb0c68f457decce0d8098f32",
+    "audits/sma20_50_scenario/run.py": "511a8fd935b3897c6e5180d9859d90ac8d99d8eb66d1470c7846de9f0d503c4e"
+  },
+  "all_runtime_sources_match_pinned_commit": true,
+  "complete_count": 612,
+  "first": "2024-11-18",
+  "last": "2026-11-17",
+  "incomplete_excluded": [
+    "2026-11-18"
+  ],
+  "eligible_prefixes": 562,
+  "signal_count": 9,
+  "long_count": 4,
+  "short_count": 5,
+  "reference_current_direction_mismatches": 0,
+  "reference_persistent_live_target_mismatches": 0,
+  "persistent_live_replay_bootstrap_candles": 50,
+  "full_snapshot_bootstrap_signals": 0,
+  "full_snapshot_bootstrap_ledger_position": 0,
+  "exact_arithmetic_comparison": {
+    "method": "Exact fractions from decimal close strings; trailing 20/50 completed observations, no calendar fill",
+    "warmup_observations": 50,
+    "first_eligible_candle": "2025-01-30T00:00:00.000000Z",
+    "eligible_prefixes": 562,
+    "strategy_direction_mismatches": 0,
+    "max_float_sma_absolute_difference": 1.8189894035458565e-12,
+    "incomplete_used": 0,
+    "future_prefix_invariance_checks": 562,
+    "signal_count": 9,
+    "long_signals": 4,
+    "short_signals": 5,
+    "signals_by_year": {
+      "2025": 6,
+      "2026": 3
+    },
+    "historical_signal_availability_verified": false,
+    "performance_calculated": false
+  },
+  "observation_clock": "All test prefixes ingested at archive captured_at; technical identity, NOT historical publication or execution replay.",
+  "real_api_used": false,
+  "live_engine_started": false,
+  "orders_created": 0,
+  "jino_old_live_database_exists": "UNKNOWN: no VPS access",
+  "execution_equivalence": false,
+  "execution_difference": "Reference: one contract at next DAY open, no costs. LIVE: up to two contracts, confirmed flat before reversal, fresh LIMIT IOC gates; no identical fill/PnL claim."
+}

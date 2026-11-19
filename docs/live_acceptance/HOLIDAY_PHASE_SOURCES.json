@@ -1,0 +1,76 @@
+{
+  "checked_date": "2026-11-19",
+  "official_repository": "RussianInvestments/investAPI",
+  "commit": "3eaf23a25f598fe483c913184acdbd9132bc68d2",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/contracts/instruments.proto",
+      "http_status": 200,
+      "sha256": "b68f70cfc044fbbd3665785f20a6bcdbe6bde8f23f048f19f20cad5ffc1941a3",
+      "excerpt": "message TradingInterval {\n  string type = 1; //Название интервала.\n  TimeInterval interval = 2; //Интервал.\n\n  message TimeInterval {\n    google.protobuf.Timestamp start_ts = 1; // Время начала интервала.\n    google.protobuf.Timestamp end_ts = 2; // Время окончания интервала.\n  }\n}\n\n\n//Запрос сделок по инсайдерам\nmessage GetInsiderDealsRequest {\n  string instrument_id = 1;\n  in",
+      "exact_phase_term_present": false
+    },
+    {
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/instruments.md",
+      "http_status": 200,
+      "sha256": "390b16c5b1471784d06ae318365d8aeb87e4261a14f3cf7d2ef510cf775a6aa9",
+      "excerpt": "#### TradingInterval\n\n\n\n| Field | Type | Description |\n| ----- | ---- | ----------- |\n| type |  [string](#string) | Название интервала. |\n| interval |  [TradingInterval.TimeInterval](#tradingintervaltimeinterval) | Интервал. |\n <!-- end Fields -->\n <!-- end HasFields -->\n\n\n#### TradingInterval.TimeInterval\n\n\n\n| Field | Type | Description |\n| ----- | ---- | ----------- |\n| start_ts |  [google.protobuf.Timestamp](#googleprotobuftimestamp) | Время начала интервала. |\n| end_ts |  [google.protobuf.Timestamp](#googleprotobuftimestamp) | Время окончания интервала. |\n <!-- end Fields -->\n <!-- end HasFields -->\n\n\n#### GetInsiderDealsRequest\nЗапрос сд",
+      "exact_phase_term_present": false
+    },
+    {
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/markets.md",
+      "http_status": 200,
+      "sha256": "1e1e2a21c0a57e662a06953cee73b593e5637ead97e92daecbb6a22c52730f7b",
+      "excerpt": "MOEX_WEEKEND|Торги на фондовом рынке</br>+ торговля на выходных|Торги по рабочим дням по расписанию `MOEX`</br>+ Основная торговая сессия **выходного** дня: 10:00 — 19:00|\nFORTS|Торговля опционами на срочном рынке|Утренняя торговая сессия: 09:00 — 10:00</br>Основная торговая сессия: 10:00 — 14:00</br>Дневной клиринг: 14:00 — 14:05</br>Основная торговая сессия: 14:05 — 18:50</br>Вечерний клиринг 18:50 — 19:05</br>Вечерняя торговая сессия: 19:05 — 23:50|\nFORTS_EVENING|Торговля фьючерсами на срочном рынке|Торги по расписанию `FORTS`</br>+ Аукцион открытия: 08:50 — 09:00|\n> Расписание торгов может меняться в зависимости от выходных, праздников и от работы биржи.",
+      "exact_phase_term_present": false
+    },
+    {
+      "url": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/faq_instruments.md",
+      "http_status": 200,
+      "sha256": "30d998284e3be94080a7e841e2f057643887fd932ea4f319a60c899eae2b0212",
+      "excerpt": "### Как узнать, торгуется ли инструмент на выходных? <a id=\"1.13\"></a>\n\nВ методах инстурментов есть флаг `weekend_flag`:\n\n- `true` — инструмент торгуется;\n- `false` — инструмент не торгуется.\n\n",
+      "exact_phase_term_present": false
+    }
+  ],
+  "documentation_search": {
+    "holiday_trading_session_morning": [],
+    "holiday_trading_session": [],
+    "FORTS_FUTURES_WEEKEND": []
+  },
+  "unavailable_sources": [
+    {
+      "url": "https://www.moex.com/ru/derivatives/",
+      "official_http_status": null,
+      "transport_error": "network_gateway_tunnel_403",
+      "content_reviewed": false
+    },
+    {
+      "url": "https://www.moex.com/ru/weekend/",
+      "official_http_status": null,
+      "transport_error": "network_gateway_tunnel_403",
+      "content_reviewed": false
+    },
+    {
+      "url": "https://www.moex.com/ru/derivatives/weekend.aspx",
+      "official_http_status": null,
+      "transport_error": "network_gateway_tunnel_403",
+      "content_reviewed": false
+    },
+    {
+      "url": "https://developer.tbank.ru/invest/services/instruments/methods",
+      "official_http_status": null,
+      "transport_error": "network_gateway_tunnel_403",
+      "content_reviewed": false
+    },
+    {
+      "url": "https://www.tbank.ru/invest/help/brokerage/trading/calendar/weekend/",
+      "official_http_status": null,
+      "transport_error": "network_gateway_tunnel_403",
+      "content_reviewed": false
+    }
+  ],
+  "broker_response_available": "user prose fragment only, not original schedule JSON",
+  "phase_semantics_officially_confirmed": false,
+  "parser_permission_expanded": false,
+  "real_api_or_jino_access": false
+}

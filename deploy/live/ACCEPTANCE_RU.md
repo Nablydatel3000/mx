@@ -5,6 +5,7 @@
 установленного контура сначала используйте [обновление диагностики счёта](../../docs/live_acceptance/ACCOUNT_SNAPSHOT_RU.md).
 Для подтверждённой ошибки GetMarginAttributes 30051: [причина и следующие действия](../../docs/live_acceptance/MARGIN_30051_RU.md).
 Для current_calendar/границ IOC: [безопасная диагностика](../../docs/live_acceptance/CURRENT_CALENDAR_RU.md).
+Для holiday_trading_session_morning 21 ноября: [результат проверки источников и блокирующие сведения](../../docs/live_acceptance/HOLIDAY_PHASE_RU.md).
 Команды первичной установки ниже — только для новой установки, не поверх существующей.
 Этап read-only: без торгового разрешения, LIVE SQLite и включения службы.
 PAPER, его SQLite, токен, каталоги и systemd не меняются.

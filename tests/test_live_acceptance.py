@@ -19,6 +19,7 @@ from src.gldrubf_bot.account_diagnostics import METHODS
 from src.gldrubf_bot.live import load_config
 from src.gldrubf_bot.models import DataError,UTC,iso
 from tests.test_api import FakeResponse
+from tests.test_detailed_sessions import reported_day
 
 TOKEN='synthetic-acceptance-token'
 ACCOUNT='12345678'
@@ -434,6 +435,56 @@ class AcceptanceTests(unittest.TestCase):
         r=acc.status(self.root,self.clock)['report'];self.assertTrue(r['statistics']['account_diagnostic']['snapshot_validated'])
         self.assertIsNone(r['statistics']['account_diagnostic']['failure'])
         self.assertFalse(r['live_accepted']);self.assertTrue(all(m in acc.READ_METHODS for m,p in self.requests))
+
+    def use_reported_calendar(self):
+        self.account_changes['InstrumentsService/TradingSchedules']=lambda r:r['exchanges'][0].update(days=[reported_day(self.now.date().isoformat())])
+
+    def test_calendar_schema_failure_is_not_a_normal_closed_market(self):
+        def change(r):r['exchanges'][0]['days'][0].pop('intervals')
+        self.account_changes['InstrumentsService/TradingSchedules']=change
+        r=self.collect();self.assertIn('current_calendar',r['blockers'])
+        entry=next(v for v in r['checks'] if v['check']=='current_calendar')
+        self.assertEqual(entry['category'],'calendar_validation_error');self.assertEqual(entry['reason'],'missing_detailed_intervals')
+        self.assertEqual(r['market']['calendar_state'],'validation_error')
+        self.assertEqual(r['statistics']['calendar_diagnostic']['days'][0]['reason'],'missing_detailed_intervals')
+
+    def test_outside_confirmed_window_is_waiting_without_calendar_schema_blocker(self):
+        self.now=self.now.replace(hour=3,minute=55);self.use_reported_calendar()
+        r=self.collect();self.assertNotIn('current_calendar',r['blockers'])
+        self.assertTrue(r['read_checks_ok']);self.assertFalse(r['market']['tradable_now'])
+        self.assertEqual(r['market']['calendar_state'],'outside_confirmed_windows')
+
+    def test_session_buffer_is_measured_to_actual_exclusive_end(self):
+        for seconds,allowed in ((0,True),(1,False)):
+            self.now=self.now.replace(hour=20,minute=49,second=seconds);self.use_reported_calendar()
+            r=self.collect();self.assertNotIn('current_calendar',r['blockers'])
+            self.assertEqual(r['market']['remaining_session_seconds'],60-seconds)
+            self.assertEqual(r['market']['session_buffer_ok'],allowed)
+            self.assertEqual(r['market']['tradable_now'],allowed)
+
+    def test_fresh_quote_in_previous_phase_does_not_authorize_new_phase(self):
+        self.now=self.now.replace(hour=16,minute=0);self.quote_lag=1;self.use_reported_calendar()
+        r=self.collect();self.assertTrue(r['market']['quote_fresh'])
+        self.assertFalse(r['market']['same_continuous_interval']);self.assertFalse(r['market']['tradable_now'])
+
+    def test_readonly_explains_wide_book_by_side_without_changing_price_bound(self):
+        self.account_changes['MarketDataService/GetOrderBook']=lambda r:r['asks'][0].update(price=quoted('100.3'))
+        r=self.collect();m=r['market'];self.assertFalse(m['book_within_proposed_limits'])
+        self.assertFalse(m['long_price_checks']['allowed']);self.assertTrue(m['short_price_checks']['allowed'])
+        self.assertEqual(m['bounded_limit_long_points'],'100.2');self.assertFalse(m['tradable_now'])
+
+    def test_standalone_calendar_command_only_reads_instrument_and_schedules(self):
+        self.assertEqual(self.run_check()[0],0);old=(self.root/'report.json').read_bytes();self.requests=[]
+        def factory(account):return REAL_CLASS(account,transport=self.transport,clock=self.clock)
+        with patch.object(acc,'ReadOnlyBroker',side_effect=factory), \
+             patch.object(acc.sys,'stdin',SimpleNamespace(buffer=io.BytesIO((TOKEN+'\n').encode()))),contextlib.redirect_stdout(io.StringIO()) as output:
+            code=acc.main(['calendar-diagnostics','--credential-stdin','--config',str(self.cfg),'--state',str(self.root)])
+        self.assertEqual(code,0)
+        self.assertEqual([m for m,p in self.requests],['InstrumentsService/FutureBy','InstrumentsService/TradingSchedules'])
+        self.assertEqual((self.root/'report.json').read_bytes(),old)
+        self.assertFalse(acc.status(self.root,self.clock)['report_matches_last_attempt'])
+        self.assertNotIn(TOKEN,output.getvalue());self.assertNotIn(ACCOUNT,output.getvalue())
+        if os.name=='posix':self.assertEqual((self.root/'calendar_diagnostic.json').stat().st_mode&0o777,0o600)
 
 
 if __name__=='__main__':unittest.main()

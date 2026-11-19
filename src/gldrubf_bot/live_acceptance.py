@@ -17,6 +17,7 @@ import warnings
 
 from . import api
 from .account_diagnostics import inspect_account,SnapshotError
+from .market_diagnostics import inspect_calendar,CalendarError,price_bounds
 from .autonomous import history_age,same_window
 from .live import load_config,risk_check
 from .live_api import Broker,UID,integer,rub
@@ -56,6 +57,7 @@ READ_METHODS=frozenset(FIELDS)  # Independent fixed whitelist, never inherited f
 
 
 def safe_error(exc):
+    if isinstance(exc,CalendarError):return dict(category='calendar_validation_error',reason=exc.reason)
     if isinstance(exc,SnapshotError):
         return dict(category='account_snapshot_validation_error',reason=exc.reason,field=exc.field)
     if isinstance(exc,api.APIError):
@@ -117,6 +119,11 @@ class ReadOnlyBroker(Broker):
             raise SnapshotError(failure['reason'],failure.get('field'))
         return snapshot
 
+    def current_calendar(self,exchange,now):
+        calendar,self.calendar_diagnostic=inspect_calendar(self,exchange,now)
+        if calendar is None:raise CalendarError(self.calendar_diagnostic['failure']['reason'])
+        return calendar
+
 
 def collect(c,broker,clock=lambda:datetime.now(UTC)):
     started=clock();checks=[];values={};stats={}
@@ -171,7 +178,8 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
             return q
         quote=check('last_price_schema',parse_quote)
     book=check('order_book',lambda:broker.call('MarketDataService/GetOrderBook',{'instrumentId':UID,'depth':1}))
-    calendar=check('current_calendar',lambda:broker.read.current_sessions(instrument.exchange,clock())) if instrument else None
+    calendar=check('current_calendar',lambda:broker.current_calendar(instrument.exchange,clock())) if instrument else None
+    stats['calendar_diagnostic']=getattr(broker,'calendar_diagnostic',None)
     start=datetime.combine(started.date(),daytime.min,UTC)-timedelta(days=14)
     candles=check('day_candles_sample',lambda:broker.read.candles(UID,start,clock()))
     if candles is not None:
@@ -247,17 +255,21 @@ def collect(c,broker,clock=lambda:datetime.now(UTC)):
                 limit_down=str(api.quotation(book['limitDown'])),limit_up=str(api.quotation(book['limitUp'])))
         b=check('orderbook_schema',book_checks)
         if b:market.update(b)
-    if quote is not None and instrument is not None and market.get('best_ask') and market.get('best_bid'):
-        buy=quote.price+c['max_slippage_ticks']*instrument.tick;sell=quote.price-c['max_slippage_ticks']*instrument.tick
-        market['bounded_limit_long_points']=str(buy);market['bounded_limit_short_points']=str(sell)
-        market['book_within_proposed_limits']=number(market['best_ask'],positive=True)<=buy and number(market['best_bid'],positive=True)>=sell
+    if quote is not None and instrument is not None and market.get('book_time'):
+        market.update(price_bounds(quote,instrument,market,c))
     if calendar is not None and quote is not None and market.get('book_time'):
         book_time=instant(market['book_time'])
         span=next(((a,b) for day in calendar.values() for a,b in day.windows if all(a<=t<b for t in (finished,quote.time,book_time))),None)
         market['same_continuous_interval']=span is not None
+        market['inside_confirmed_window_now']=any(a<=finished<b for day in calendar.values() for a,b in day.windows)
+        market['remaining_session_seconds']=max(0,(span[1]-finished).total_seconds()) if span else None
         market['session_buffer_ok']=bool(span and (span[1]-finished).total_seconds()>=c['min_session_remaining_seconds'])
         market['tradable_now']=all(market.get(k,False) for k in ('normal_api_limit_status','quote_fresh','book_fresh','same_continuous_interval','session_buffer_ok','book_within_proposed_limits'))
         market['current_windows']=[[iso(a),iso(b)] for day in calendar.values() for a,b in day.windows]
+    if calendar is not None:
+        market['inside_confirmed_window_now']=any(a<=finished<b for day in calendar.values() for a,b in day.windows)
+    market['calendar_state']='validation_error' if calendar is None else 'inside_confirmed_window' if market.get('inside_confirmed_window_now') else 'outside_confirmed_windows'
+    market['wait_reasons']=[key for key in ('normal_api_limit_status','quote_fresh','book_fresh','same_continuous_interval','session_buffer_ok','book_within_proposed_limits') if not market.get(key,False)]
     stats['account_sample_duration_seconds']=max(0,(account_checked-account_started).total_seconds())
     stats['account_age_at_report_seconds']=max(0,(finished-account_started).total_seconds())
     stats['account_snapshot_fresh']=0<=(finished-account_started).total_seconds()<=c['snapshot_max_age_seconds']
@@ -325,13 +337,16 @@ def display_status(result):
     for label,item in s.get('capital_checks',{}).items():
         print('Capital '+label+':',item.get('evaluation','evaluated'),item.get('reason',''),
               '| Required RUB:',item.get('required_rub','unavailable'),'| Available RUB:',item.get('available_rub','unavailable'))
+    print('Calendar:',report.get('market',{}).get('calendar_state','unavailable'),
+          '| Failure:',(s.get('calendar_diagnostic') or {}).get('failure'))
+    print('Market wait reasons:',', '.join(report.get('market',{}).get('wait_reasons',[])))
     print('Market gates now:',report.get('market',{}).get('tradable_now',False),'| IOC runtime support: UNCONFIRMED')
     print('Order submission/cancellation: permanently prohibited in this command.')
 
 
 def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command',choices=['configure','account','accounts','install-token','check','status','account-diagnostics','fee-limit'])
+    p.add_argument('command',choices=['configure','account','accounts','install-token','check','status','account-diagnostics','calendar-diagnostics','fee-limit'])
     p.add_argument('--config',type=Path,default=CONFIG);p.add_argument('--state',type=Path,default=ROOT)
     p.add_argument('--credential-file',type=Path,default=TOKEN)
     p.add_argument('--credential-stdin',action='store_true')
@@ -398,12 +413,17 @@ def main(argv=None):
             value=token_text(sys.stdin.buffer.read(8193).decode('ascii'))
             os.environ['T_INVEST_TOKEN']=value
             broker=ReadOnlyBroker(c['account_id'])
-            if args.command=='account-diagnostics':
-                snapshot,diagnostic=inspect_account(broker)
-                diagnostic.update(mode='ACCOUNT_DIAGNOSTICS_READ_ONLY',run_id=attempt['run_id'],
+            if args.command in ('account-diagnostics','calendar-diagnostics'):
+                if args.command=='account-diagnostics':
+                    snapshot,diagnostic=inspect_account(broker);filename='account_diagnostic.json'
+                    diagnostic['mode']='ACCOUNT_DIAGNOSTICS_READ_ONLY'
+                else:
+                    instrument=broker.read.instrument(UID)
+                    snapshot,diagnostic=inspect_calendar(broker,instrument.exchange,datetime.now(UTC));filename='calendar_diagnostic.json'
+                diagnostic.update(run_id=attempt['run_id'],
                     checked_at=iso(datetime.now(UTC)),method_checks=broker.calls,live_accepted=False,
                     order_submission_count=0,order_cancellation_count=0)
-                atomic_json(args.state/'account_diagnostic.json',diagnostic)
+                atomic_json(args.state/filename,diagnostic)
                 attempt.update(status='DONE',checked_at=diagnostic['checked_at'],read_checks_ok=snapshot is not None)
                 atomic_json(args.state/'attempt.json',attempt)
                 print(json.dumps(diagnostic,ensure_ascii=False,indent=2))

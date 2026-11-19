@@ -21,7 +21,7 @@ class UpdateTests(unittest.TestCase):
         self.old=self.code/'src/gldrubf_bot/live_acceptance.py';self.old.write_text('old readonly')
         self.wrapper.write_text('old wrapper');(self.state/'read_only.lock').touch()
         (self.root/'config.json').write_text('existing private config');(self.root/'token').write_text('synthetic private token')
-        for path in ('src/gldrubf_bot/account_diagnostics.py','src/gldrubf_bot/live_acceptance.py','deploy/live/acceptance_check.sh'):
+        for path in ('src/gldrubf_bot/account_diagnostics.py','src/gldrubf_bot/market_diagnostics.py','src/gldrubf_bot/live_acceptance.py','deploy/live/acceptance_check.sh'):
             (self.source/path).write_text('new '+Path(path).name)
         self.enterContext(patch.object(updater,'CORE',updater.digest(self.core)))
         self.enterContext(patch.object(updater,'OLD',{'live_acceptance.py':updater.digest(self.old),'acceptance_check.sh':updater.digest(self.wrapper)}))

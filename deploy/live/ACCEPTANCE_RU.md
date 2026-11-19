@@ -4,6 +4,7 @@
 реальной read-only проверке; Codex не проверял VPS самостоятельно.** Для уже
 установленного контура сначала используйте [обновление диагностики счёта](../../docs/live_acceptance/ACCOUNT_SNAPSHOT_RU.md).
 Для подтверждённой ошибки GetMarginAttributes 30051: [причина и следующие действия](../../docs/live_acceptance/MARGIN_30051_RU.md).
+Для current_calendar/границ IOC: [безопасная диагностика](../../docs/live_acceptance/CURRENT_CALENDAR_RU.md).
 Команды первичной установки ниже — только для новой установки, не поверх существующей.
 Этап read-only: без торгового разрешения, LIVE SQLite и включения службы.
 PAPER, его SQLite, токен, каталоги и systemd не меняются.

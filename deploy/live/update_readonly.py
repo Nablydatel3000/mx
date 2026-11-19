@@ -11,8 +11,10 @@ import tempfile
 
 OLD={
  'account_diagnostics.py':'f10a2089e7408e70c09c42d2a3a33e805d1f8727ec641f5cc566bbeb9e13331d',
- 'live_acceptance.py':'5896fca66bdfbec1cf781c9444e0c69befca5da53f3322b55f3bf39dd8aeeff9',
- 'acceptance_check.sh':'9c7800a50668023794c7f1d8c2d1d93fc2fa01072ec91bf7bb78bca7b2d8e858'}
+ 'live_acceptance.py':{'5896fca66bdfbec1cf781c9444e0c69befca5da53f3322b55f3bf39dd8aeeff9',
+                       'bead0e1f50fcec201c76600d771c5a285ab3dc0a088b66f1ed8dab0377f2b1c6'},
+ 'acceptance_check.sh':{'9c7800a50668023794c7f1d8c2d1d93fc2fa01072ec91bf7bb78bca7b2d8e858',
+                        'ce84f7c031de50579a118dc9337e1d17e48026d0b332fbb88df15fb130aa4840'}}
 CORE='3e23641059ff41a7edfb26b81b1738a3807f5737990f50dabed984fa448d5afa'
 
 
@@ -30,14 +32,16 @@ def update(source,code,wrapper,state):
     core=code/'src/gldrubf_bot/live_api.py';physical(core)
     if digest(core)!=CORE:raise RuntimeError('Unknown base broker adapter; no files replaced')
     files=[(source/'src/gldrubf_bot/account_diagnostics.py',code/'src/gldrubf_bot/account_diagnostics.py',0o644),
+           (source/'src/gldrubf_bot/market_diagnostics.py',code/'src/gldrubf_bot/market_diagnostics.py',0o644),
            (source/'src/gldrubf_bot/live_acceptance.py',code/'src/gldrubf_bot/live_acceptance.py',0o644),
            (source/'deploy/live/acceptance_check.sh',wrapper,0o755)]
     for src,dst,mode in files:
         physical(src);physical(dst)
         if not src.is_file():raise RuntimeError('Missing update source')
-        if dst.exists() and digest(dst) not in {OLD.get(src.name),digest(src)}:
+        known=OLD.get(src.name,());known={known} if isinstance(known,str) else set(known)
+        if dst.exists() and digest(dst) not in known|{digest(src)}:
             raise RuntimeError('Unknown installed acceptance version; preserve and review')
-        if not dst.exists() and src.name!='account_diagnostics.py':raise RuntimeError('Existing acceptance installation required')
+        if not dst.exists() and src.name not in ('account_diagnostics.py','market_diagnostics.py'):raise RuntimeError('Existing acceptance installation required')
     files=[(src,dst,mode) for src,dst,mode in files if not dst.exists() or digest(src)!=digest(dst)]
     lock=state/'read_only.lock';physical(lock)
     if not lock.exists():raise RuntimeError('Existing acceptance lock required; no runtime files created')

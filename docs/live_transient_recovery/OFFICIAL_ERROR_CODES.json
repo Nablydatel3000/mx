@@ -1,0 +1,27 @@
+{
+  "source": "https://raw.githubusercontent.com/RussianInvestments/investAPI/main/src/docs/errors/api_errors.json",
+  "retrieved_on": "2026-11-25",
+  "response_sha256": "49e058c4e6518682be6cec5afeac2b2190bf857a38a26ed6a8b7fc3260b75711",
+  "relevant_entries": {
+    "70001": {
+      "message": "Internal error",
+      "type": "INTERNAL",
+      "description": "Внутренняя ошибка сервиса.<br/>Если ошибка повторяется, обратитесь в службу технической поддержки."
+    },
+    "70002": {
+      "message": "Internal network error",
+      "type": "INTERNAL",
+      "description": "Неизвестная сетевая ошибка, попробуйте выполнить запрос позже.<br/>Если ошибка повторяется, обратитесь в службу технической поддержки."
+    },
+    "70003": {
+      "message": "Internal error, please try again later",
+      "type": "INTERNAL",
+      "description": "Внутренняя ошибка сервиса, попробуйте выполнить запрос позже.<br/>Если ошибка повторяется, обратитесь в службу технической поддержки."
+    },
+    "80002": {
+      "message": "Request limit exceeded",
+      "type": "RESOURCE_EXHAUSTED",
+      "description": "Превышен лимит запросов в минуту. [Подробнее про лимитную политику](./limits/)"
+    }
+  }
+}

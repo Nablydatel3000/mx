@@ -24,6 +24,7 @@ from .live_api import Broker,UID,quoted,integer
 from .live_store import Store,TERMINAL
 from .live_market import limit_status
 from .live_errors import DefinitelyNotSent
+from .live_recovery import RecoveryLoop
 
 ACK='LIVE_GLDRUBF_2_CONTRACTS_15000_RUB_EXCLUSIVE'
 ACCOUNT_LOCK_ROOT=Path('/var/lib/gldrubf-live/locks')
@@ -51,7 +52,7 @@ def load_config(path):
 def fingerprint(c):
     root=Path(__file__).parent
     software={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in
-        ('live.py','live_api.py','live_store.py','live_market.py','live_errors.py','strategy.py','api.py','autonomous.py','locking.py','history.py')}
+        ('live.py','live_api.py','live_store.py','live_market.py','live_errors.py','strategy.py','api.py','autonomous.py','locking.py','history.py','live_recovery.py')}
     return hashlib.sha256(encoded(dict(config=c,software=software))).hexdigest()
 
 
@@ -82,6 +83,7 @@ class Controls:
         row=next((r for r in self.store.orders() if r['request_id']==payload.get('orderId')),None)
         if row is None or payload.get('accountId')!=self.config['account_id']:raise DataError('Unowned LIVE request')
         if method=='OrdersService/PostOrder':
+            if getattr(self,'read_recovery_required',lambda:False)():raise DataError('LIVE read recovery not reconciled')
             if not self.permitted() or row['status']!='SENDING' or json.loads(row['payload'])!=payload:
                 raise DataError('LIVE dispatch not authorized')
             highwater=json.loads(self.store.path.with_suffix('.highwater.json').read_text())
@@ -113,6 +115,7 @@ class Engine:
     def __init__(self,store,broker,controls,clock=lambda:datetime.now(UTC)):
         self.store,self.broker,self.controls,self.clock=store,broker,controls,clock
         self.config=controls.config
+        controls.read_recovery_required=lambda:bool(getattr(getattr(broker,'retries',None),'required',False))
 
     def stop(self,reason):self.store.halt(reason,self.clock())
 
@@ -160,6 +163,7 @@ class Engine:
         if not self.controls.permitted():
             self.stop('LIVE_PERMISSION_OR_KILL');self.cancel();return 'HALTED'
         if self.store.meta()['halt']:return 'HALTED'
+        if self.controls.read_recovery_required():return 'WAIT_API_RECOVERY'
         start=now;account=self.reconcile()
         if self.store.meta()['halt']:return 'HALTED'
         if account is None:
@@ -242,6 +246,7 @@ class Engine:
             status_gate='UID_NORMAL_API_LIMIT_CONFIRMED')
         selection=getattr(self.broker.read,'last_calendar_evidence',None)
         if isinstance(selection,dict):context['calendar_selection']=selection
+        if self.controls.read_recovery_required():return 'WAIT_API_RECOVERY'
         self.store.intent(signal,phase,side,qty,position,payload,current,context)
         self.controls.dispatch_context=(current,quote.time,book_time,calendar,status_from,status_to)
         try:self.store.ack(payload['orderId'],self.broker.post(payload),self.clock())
@@ -375,14 +380,21 @@ def main(argv=None):
                 print(json.dumps(output,ensure_ascii=False,indent=2));return 0
             os.environ.pop('SSLKEYLOGFILE',None)
             os.environ['T_INVEST_TOKEN']=secret(args.credential_file)
-            broker=Broker(c['account_id'],write_guard=controls.guard);broker.accounts()
+            broker=Broker(c['account_id'],write_guard=controls.guard)
+            if args.command!='run':broker.accounts()
             engine=Engine(store,broker,controls)
             def cleanup():
                 import sys
                 if args.command=='run' and (sys.exc_info()[0] is not None or (state/'STOP').exists() or store.meta()['halt']):
+                    original_halt=store.meta()['halt']
                     try:
-                        engine.stop('PROCESS_STOP_OR_FAILURE');engine.cancel()
-                    except Exception:engine.stop('CANCEL_OUTCOME_UNCERTAIN')
+                        if not original_halt:engine.stop('PROCESS_STOP_OR_FAILURE')
+                        engine.cancel()
+                    except Exception:
+                        if not original_halt:engine.stop('CANCEL_OUTCOME_UNCERTAIN')
+                        else:
+                            with store.db() as db:db.execute('INSERT INTO live_events(time,category,details) VALUES(?,?,NULL)',
+                                (iso(datetime.now(UTC)),'CANCEL_OUTCOME_UNCERTAIN'))
             # Runs before physical/account locks are released, also on SIGTERM.
             stack.callback(cleanup)
             if args.command in ('sync','status','resume'):
@@ -405,37 +417,20 @@ def main(argv=None):
                 engine.stop('OPERATOR_CANCEL');engine.cancel(force=True)
                 print('Cancel requested and order state queried; inspect status before any restart.');return 0
             if not args.allow_live or not controls.permitted():raise DataError('LIVE disabled')
-            # Never adopt existing manual positions/orders. Restarts reconcile own ledger first.
-            if engine.reconcile() is None:raise DataError('Startup position mismatch')
-            store.snapshot('OPERATIONS',broker.operations(store.meta()['started'],datetime.now(UTC)),datetime.now(UTC))
             def stop_signal(*unused):
                 atomic_json(state/'STOP',dict(reason='PROCESS_STOP',at=iso(datetime.now(UTC))));raise KeyboardInterrupt()
             old_handler=signal.signal(signal.SIGTERM,stop_signal)
-            previous=None;last_history=None;history_fresh=False
-            while True:
-                check();now=datetime.now(UTC)
-                if not controls.permitted():event=engine.step(False)
-                else:
-                    if not last_history or (now-last_history).total_seconds()>=60:
-                        instrument=broker.read.instrument(UID)
-                        folder=state/'history'/now.strftime('%Y%m%dT%H%M%S_%fZ')
-                        snapshot=download_daily(broker.read,instrument,instant(store.meta()['source_from']),now,folder,previous=previous,make_template=False)
-                        check();history_fresh=engine.ingest(snapshot);previous=snapshot;last_history=now
-                    check();event=engine.step(history_fresh)
-                ops=broker.operations(store.meta()['started'],datetime.now(UTC))
-                store.snapshot('OPERATIONS',ops,datetime.now(UTC))
-                atomic_json(state/'health.json',dict(time=iso(datetime.now(UTC)),event=event,halt=store.meta()['halt'],position=store.position()))
-                print(json.dumps(dict(mode='LIVE',event=event,position=store.position())),flush=True)
-                if event=='HALTED':return 78
-                if args.once:return 0
-                time.sleep(c['poll_seconds'])
+            return RecoveryLoop(engine,check,clock=lambda:datetime.now(UTC)).run(once=args.once)
     except KeyboardInterrupt:
         return 0
     except Exception as exc:
         if store is not None and args.command not in ('status','preflight'):
             try:
                 detail={k:getattr(exc,k,None) for k in ('method','http_status','content_type','category','grpc_code','api_code')} if isinstance(exc,APIError) else None
-                store.halt('LIVE_API_DATA_OR_STATE_ERROR',datetime.now(UTC),detail)
+                if not store.meta()['halt']:store.halt('LIVE_API_DATA_OR_STATE_ERROR',datetime.now(UTC),detail)
+                elif detail is not None:
+                    with store.db() as db:db.execute('INSERT INTO live_events(time,category,details) VALUES(?,?,?)',
+                        (iso(datetime.now(UTC)),'LIVE_API_DATA_OR_STATE_ERROR',encoded(detail).decode()))
             except Exception:pass
         # Do not reflect a token, account, endpoint response or arbitrary exception text.
         print('STOP: LIVE broker/data/state/permission failure. Inspect private status; no blind retry.')

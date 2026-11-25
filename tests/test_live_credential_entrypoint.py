@@ -120,6 +120,17 @@ class CredentialTests(unittest.TestCase):
         with patch.object(entry.live,'main',side_effect=delegated):code,result=self.invoke(['sync'])
         self.assertEqual(code,0);self.assertTrue(result['halt_present']);self.assertEqual(result['ledger_position'],0)
 
+    def test_read_retry_logs_do_not_break_management_json(self):
+        from src.gldrubf_bot.live_recovery import log_event
+        def delegated(args):
+            log_event('API_READ_RESPONSE_RESTORED',attempts=2)
+            print(json.dumps(dict(halt='LIVE_API_DATA_OR_STATE_ERROR',ledger_position=0,orders=[])))
+            return 0
+        with patch.object(entry.live,'main',side_effect=delegated),contextlib.redirect_stderr(io.StringIO()) as logs:
+            code,result=self.invoke(['sync'])
+        self.assertEqual(code,0);self.assertTrue(result['halt_present'])
+        self.assertEqual(json.loads(logs.getvalue())['event'],'API_READ_RESPONSE_RESTORED')
+
     def test_master_install_token_policy_unchanged(self):
         target=self.root/'master'
         args=['install-token','--credential-file',str(target),'--state',str(self.root/'unused')]

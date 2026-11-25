@@ -1,12 +1,15 @@
 """Isolated LIVE broker adapter. PAPER's read-only allowlist is unchanged.
 
-Single HTTP attempt, including mutations. Ambiguous outcomes MUST be reconciled
+Single HTTP attempt for mutations; bounded retries for allowlisted reads only.
+Ambiguous outcomes MUST be reconciled
 by request UUID, never retried with a new UUID or silently treated as rejection.
 """
 import json
 import http.client
 import urllib.request
 import urllib.error
+import errno
+import ssl
 from decimal import Decimal
 
 from . import api
@@ -14,6 +17,7 @@ from .api_error_codes import read_error_codes,extract_codes
 from .models import DataError,number,instant,iso,UTC
 from .live_market import LiveReadClient
 from .live_errors import DefinitelyNotSent
+from .live_recovery import ReadRetries
 
 UID='b347fe28-0d2a-45bf-b3bd-cda8a6ac64e6'
 READ={'UsersService/GetAccounts','UsersService/GetMarginAttributes','OperationsService/GetPositions',
@@ -50,14 +54,37 @@ def quoted(value):
     return dict(units=str(units),nano=nano)
 
 
+class RetryingReadClient(LiveReadClient):
+    def __init__(self,retries,**kwargs):
+        self.retries=retries
+        super().__init__(**kwargs)
+
+    def call(self,method,payload):
+        return self.retries.call(method,lambda:super(RetryingReadClient,self).call(method,payload))
+
+
 class Broker:
-    def __init__(self,account,*,transport=None,write_guard=None):
-        self.account_id=account;self.read=LiveReadClient(transport=transport,attempts=1)
-        self.transport=transport or urllib.request.build_opener(api.NoRedirect()).open
+    def __init__(self,account,*,transport=None,write_guard=None,retries=None):
+        self.retries=retries or ReadRetries()
+        raw_transport=transport or urllib.request.build_opener(api.NoRedirect()).open
+        def checked_transport(request,**kwargs):
+            try:return raw_transport(request,**kwargs)
+            except OSError as exc:
+                reason=exc.reason if isinstance(exc,urllib.error.URLError) else exc
+                if isinstance(reason,OSError) and not isinstance(reason,ssl.SSLError) and reason.errno in (errno.EACCES,errno.EPERM,errno.EINVAL,errno.ENOENT,errno.ENOSPC,errno.ENOMEM,errno.EMFILE,errno.ENFILE):
+                    method=request.full_url.removeprefix(api.BASE)
+                    raise api._failure(method,None,'unknown','local_transport_error') from None
+                raise
+        self.account_id=account;self.read=RetryingReadClient(self.retries,transport=checked_transport,attempts=1)
+        self.transport=checked_transport
         self.write_guard=write_guard
 
     def call(self,method,payload):
         if method in api.ALLOWED:return self.read.call(method,payload)
+        if method in READ:return self.retries.call(method,lambda:self._call_once(method,payload))
+        return self._call_once(method,payload)
+
+    def _call_once(self,method,payload):
         try:
             if method not in READ|WRITE:raise DataError('LIVE endpoint prohibited')
             if payload.get('accountId',self.account_id)!=self.account_id:raise DataError('Wrong account')
@@ -91,6 +118,11 @@ class Broker:
             # Transport has been entered: even this exception type is NOT a certificate.
             raise api._failure(method,status,ctype,'transport_outcome_uncertain') from None
         except (OSError,ValueError,http.client.HTTPException) as exc:
+            if isinstance(exc,ValueError):raise api._failure(method,status,ctype,'request_or_response_value_error') from None
+            if isinstance(exc,(OSError,http.client.HTTPException)):
+                network=api._network_failure(method,status,ctype,exc)
+                if network.category in ('tls_verification_error','tls_error','proxy_tunnel_error'):
+                    raise network from None
             raise api._failure(method,status,ctype,'transport_or_request_error') from None
 
     def accounts(self):
